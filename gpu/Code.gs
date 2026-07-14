@@ -1,10 +1,9 @@
 /*************************************************************
  * AI게임융합학과 고사양 서버 이용관리 — Apps Script 백엔드
- * 자동 폴더 생성판(폴더 ID 불필요). Drive에 JSON 1개로 저장.
+ * 자동 폴더 생성판 + JSONP 읽기 지원(교차도메인 CORS 우회).
  *
- * ▶ 배포: 배포 > 새 배포 > 웹 앱
- *     - 실행 주체: 나 / 액세스 권한: 모든 사용자
- *   → 생성된 /exec URL을 웹앱(index.html)과 신청폼(apply/index.html)의 CLOUD_URL 에 넣기.
+ * ▶ 코드 교체 후 반드시: 배포 관리 > (연필) 편집 > 버전: 새 버전 > 배포
+ *   (URL 유지된 채 최신 코드로 갱신)
  *************************************************************/
 
 const FOLDER_NAME = '서버이용관리-DB';
@@ -24,30 +23,41 @@ function saveFile(name, content) {
   if (ex) ex.setContent(content);
   else getFolder().createFile(name, content, 'application/json');
 }
-function jsonResponse(obj) {
-  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+function out(obj, callback) {
+  if (callback) {
+    return ContentService.createTextOutput(callback + '(' + JSON.stringify(obj) + ')')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function doGet(e) {
-  const action = (e && e.parameter && e.parameter.action) || 'read';
-  if (action === 'ping') return jsonResponse({ status: 'ok', timestamp: new Date().toISOString() });
-  const file = findFile(FILE_NAME);
-  if (!file) return jsonResponse({ status: 'empty' });
-  return jsonResponse({ status: 'ok', data: JSON.parse(file.getBlob().getDataAsString()) });
+  const p = (e && e.parameter) || {};
+  const action = p.action || 'read';
+  let obj;
+  if (action === 'ping') {
+    obj = { status: 'ok', timestamp: new Date().toISOString() };
+  } else {
+    const file = findFile(FILE_NAME);
+    obj = file ? { status: 'ok', data: JSON.parse(file.getBlob().getDataAsString()) }
+               : { status: 'empty' };
+  }
+  return out(obj, p.callback);
 }
 
 function doPost(e) {
   let body;
   try { body = JSON.parse(e.postData.contents); }
-  catch (err) { return jsonResponse({ status: 'error', message: 'bad json' }); }
+  catch (err) { return out({ status: 'error', message: 'bad json' }); }
 
   if (body.action === 'save') {
-    if (String(body.pin) !== String(WRITE_PIN)) return jsonResponse({ status: 'error', message: 'unauthorized' });
+    if (String(body.pin) !== String(WRITE_PIN)) return out({ status: 'error', message: 'unauthorized' });
     const data = body.data || {};
     data._synced = new Date().toISOString();
     data._source = body.source || 'web-admin';
     saveFile(FILE_NAME, JSON.stringify(data, null, 2));
-    return jsonResponse({ status: 'ok', synced: data._synced });
+    return out({ status: 'ok', synced: data._synced });
   }
 
   if (body.action === 'apply') {
@@ -61,10 +71,10 @@ function doPost(e) {
     data.applications.push(app);
     data._synced = new Date().toISOString();
     saveFile(FILE_NAME, JSON.stringify(data, null, 2));
-    return jsonResponse({ status: 'ok', no: app.no });
+    return out({ status: 'ok', no: app.no });
   }
 
-  return jsonResponse({ status: 'error', message: 'unknown action' });
+  return out({ status: 'error', message: 'unknown action' });
 }
 
 function testSetup() {
