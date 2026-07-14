@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GPU 서버 사용 신청서 · AI게임융합학과</title>
+<style>
+  :root{--navy:#2E5AAC;--navy-d:#1f3f7a;--ink:#1c2430;--mut:#66707d;--line:#e3e8f0;--bg:#f5f7fb;--card:#fff;--ok:#3f7a3f;--err:#b5482f}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Malgun Gothic","맑은 고딕","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;
+       background:var(--bg);color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:720px;margin:0 auto;padding:28px 20px 70px}
+  header.top{border-bottom:3px solid var(--navy);padding-bottom:15px;margin-bottom:20px}
+  .eyebrow{color:var(--navy);font-weight:700;font-size:13px;letter-spacing:.04em}
+  h1{font-size:23px;font-weight:800;margin:5px 0 6px}
+  .sub{color:var(--mut);font-size:13.5px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:16px;
+        box-shadow:0 1px 3px rgba(30,50,90,.05)}
+  .card h2{font-size:15px;font-weight:800;color:var(--navy);margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .fld{margin-bottom:14px}
+  .fld:last-child{margin-bottom:0}
+  label.lb{display:block;font-size:12.5px;font-weight:700;margin-bottom:5px}
+  label.lb .req{color:var(--err);margin-left:2px}
+  label.lb .hint{color:var(--mut);font-weight:500;font-size:11px;margin-left:6px}
+  input[type=text],input[type=tel],input[type=email],input[type=number],input[type=date],select,textarea{
+    width:100%;font:inherit;font-size:13.5px;padding:9px 11px;border:1px solid #c7d0de;border-radius:8px;background:#fff;color:var(--ink)}
+  textarea{resize:vertical;min-height:70px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:560px){.row2{grid-template-columns:1fr}}
+  .slots{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  @media(max-width:560px){.slots{grid-template-columns:1fr}}
+  .slot{display:flex;align-items:center;gap:7px;border:1px solid #c7d0de;border-radius:8px;padding:8px 10px;font-size:12.5px;cursor:pointer}
+  .slot input{width:16px;height:16px;accent-color:var(--navy)}
+  .slot.wknd{background:#fdf6f7;border-color:#f0d6da}
+  .slotgrouplabel{font-size:11.5px;font-weight:700;color:var(--mut);margin:10px 0 6px}
+  .agree{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;background:#f7f9fc;border:1px solid var(--line);border-radius:8px;padding:11px 13px}
+  .agree input{width:17px;height:17px;margin-top:1px;accent-color:var(--navy)}
+  .btnrow{display:flex;gap:10px;justify-content:flex-end;margin-top:6px}
+  button.submit{font:inherit;font-size:14.5px;font-weight:800;border:none;background:var(--navy);color:#fff;
+    border-radius:10px;padding:12px 26px;cursor:pointer}
+  button.submit:hover{background:var(--navy-d)}
+  button.submit:disabled{background:#9fb0cf;cursor:not-allowed}
+  .msg{font-size:12.5px;margin-top:10px;padding:10px 13px;border-radius:8px;display:none}
+  .msg.ok{display:block;background:#e6f2e3;color:var(--ok);border:1px solid #bfe0b8}
+  .msg.err{display:block;background:#fdece8;color:var(--err);border:1px solid #f2c9bf}
+  .note{font-size:11.5px;color:var(--mut);margin-top:6px}
+  .done{display:none;text-align:center;padding:40px 20px}
+  .done .ic{font-size:44px}
+  .done h2{font-size:20px;margin:12px 0 8px;color:var(--navy)}
+  .done p{color:var(--mut);font-size:13.5px}
+  .done .sumbox{text-align:left;background:#f7f9fc;border:1px solid var(--line);border-radius:10px;padding:14px;margin-top:16px;font-size:12.5px;white-space:pre-wrap;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">서일대학교 · AI게임융합학과</div>
+    <h1>고사양 GPU 서버 사용 신청서</h1>
+    <div class="sub">서버 이용을 위해 아래 항목을 작성해 제출해 주세요. 학과 검토 후 GPU 슬롯·이용시간대를 배정합니다.</div>
+  </header>
+
+  <form id="form">
+    <!-- 신청 기관 -->
+    <div class="card">
+      <h2>1. 신청 기관·담당자</h2>
+      <div class="fld">
+        <label class="lb">신청 기관/연구회명<span class="req">*</span></label>
+        <input type="text" id="who" placeholder="예) ㈜모빌테크" required>
+      </div>
+      <div class="row2">
+        <div class="fld">
+          <label class="lb">구분<span class="req">*</span></label>
+          <select id="kind" required>
+            <option value="산학협력기업">산학협력기업</option>
+            <option value="학생연구회">학생연구회</option>
+            <option value="교내 연구실">교내 연구실</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+        <div class="fld">
+          <label class="lb">이메일<span class="req">*</span><span class="hint">회신용</span></label>
+          <input type="email" id="email" placeholder="name@company.com" required>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="fld">
+          <label class="lb">담당자(정) 성명·직위<span class="req">*</span></label>
+          <input type="text" id="mgr1" placeholder="예) 송휴섭 팀장" required>
+        </div>
+        <div class="fld">
+          <label class="lb">담당자(정) 연락처<span class="req">*</span></label>
+          <input type="tel" id="tel1" placeholder="010-0000-0000" required>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="fld">
+          <label class="lb">담당자(부) 성명<span class="hint">선택</span></label>
+          <input type="text" id="mgr2" placeholder="예) 신은택 선임연구원">
+        </div>
+        <div class="fld">
+          <label class="lb">담당자(부) 연락처<span class="hint">선택</span></label>
+          <input type="tel" id="tel2" placeholder="010-0000-0000">
+        </div>
+      </div>
+    </div>
+
+    <!-- 이용 내용 -->
+    <div class="card">
+      <h2>2. 이용 내용</h2>
+      <div class="row2">
+        <div class="fld">
+          <label class="lb">희망 서버<span class="req">*</span></label>
+          <select id="server" required>
+            <option value="h200">H200 GPU 서버 (H200 141GB ×4)</option>
+            <option value="poseidon">Poseidon AI 서버 (RTX 4090 ×3)</option>
+            <option value="threadripper">ThreadRipper GPU 서버 (RTX 4090 ×2)</option>
+          </select>
+        </div>
+        <div class="fld">
+          <label class="lb">GPU 요청 수량<span class="req">*</span><span class="hint">기(개)</span></label>
+          <input type="number" id="gpu" min="1" max="4" step="1" placeholder="예) 2" required>
+        </div>
+      </div>
+      <div class="fld">
+        <label class="lb">프로젝트명 / 이용 목적<span class="req">*</span></label>
+        <textarea id="purpose" placeholder="예) 차세대 LLM·피지컬 AI 개발: COSMOS WFM 파인튜닝 및 서비스 실증" required></textarea>
+      </div>
+    </div>
+
+    <!-- 사용 기간 -->
+    <div class="card">
+      <h2>3. 사용 기간</h2>
+      <div class="row2">
+        <div class="fld">
+          <label class="lb">사용 시작일<span class="req">*</span></label>
+          <input type="date" id="start" required>
+        </div>
+        <div class="fld">
+          <label class="lb">사용 종료일<span class="req">*</span><span class="hint">시작일로부터 6개월 이내</span></label>
+          <input type="date" id="end" required>
+        </div>
+      </div>
+      <div class="note">※ 운영규정 제7조: 1회 배정 이용기간은 6개월을 초과할 수 없으며, 종료일 미기재 신청은 접수되지 않습니다. (연장 신청으로 갱신 가능)</div>
+    </div>
+
+    <!-- 이용시간대 -->
+    <div class="card">
+      <h2>4. 희망 이용시간대<span style="font-weight:500;font-size:12px;color:var(--mut)"> (복수 선택 가능)</span></h2>
+      <div class="slotgrouplabel">평일</div>
+      <div class="slots">
+        <label class="slot"><input type="checkbox" class="slotchk" value="평일 오전(09~13)"> 오전 09~13</label>
+        <label class="slot"><input type="checkbox" class="slotchk" value="평일 오후(13~18)"> 오후 13~18</label>
+        <label class="slot"><input type="checkbox" class="slotchk" value="평일 야간(18~24)"> 야간 18~24</label>
+      </div>
+      <div class="slotgrouplabel">주말·공휴일</div>
+      <div class="slots">
+        <label class="slot wknd"><input type="checkbox" class="slotchk" value="주말 오전(09~13)"> 오전 09~13</label>
+        <label class="slot wknd"><input type="checkbox" class="slotchk" value="주말 오후(13~18)"> 오후 13~18</label>
+        <label class="slot wknd"><input type="checkbox" class="slotchk" value="주말 야간(18~24)"> 야간 18~24</label>
+      </div>
+      <div class="note">※ 형평 배분을 위해 학과가 이용시간대를 조정·지정할 수 있습니다. (운영규정 제8조)</div>
+    </div>
+
+    <!-- 준수사항 -->
+    <div class="card">
+      <h2>5. 준수사항 동의</h2>
+      <label class="agree">
+        <input type="checkbox" id="agree" required>
+        <span>배정 목적 외 사용을 하지 않으며, 이용 종료 시 데이터 백업·정리는 이용자 책임임을 확인합니다. 또한 자원 형평 배분을 위한 학과의 이용시간대 지정·조정 및 미사용 시 자원 회수 방침에 동의합니다.</span>
+      </label>
+    </div>
+
+    <div class="btnrow">
+      <button type="submit" class="submit" id="submitBtn">신청서 제출</button>
+    </div>
+    <div class="msg" id="msg"></div>
+  </form>
+
+  <!-- 완료 화면 -->
+  <div class="done" id="done">
+    <div class="ic">✅</div>
+    <h2>신청서가 제출되었습니다</h2>
+    <p>학과에서 검토 후 배정 결과를 회신드립니다.</p>
+    <div class="sumbox" id="summary"></div>
+  </div>
+</div>
+
+<script>
+/* ===== 설정 ===== */
+// Apps Script /exec URL (백엔드 배포 후 붙여넣기). 비어 있으면 이메일 제출로 대체.
+const CLOUD_URL = "";
+// 백엔드 미연동 시 신청 내용을 받을 학과 이메일
+const MAIL_TO = "withsky0@gmail.com";
+
+const $ = id => document.getElementById(id);
+const SV_NAME = { h200:"H200 GPU 서버", poseidon:"Poseidon AI 서버", threadripper:"ThreadRipper GPU 서버" };
+
+function monthsBetween(s, e){
+  const a=new Date(s), b=new Date(e);
+  return (b.getFullYear()-a.getFullYear())*12 + (b.getMonth()-a.getMonth()) - (b.getDate()<a.getDate()?1:0);
+}
+function showMsg(text, cls){ const m=$('msg'); m.textContent=text; m.className='msg '+cls; }
+
+function collect(){
+  const slots = Array.from(document.querySelectorAll('.slotchk:checked')).map(c=>c.value);
+  return {
+    who: $('who').value.trim(), kind: $('kind').value, email: $('email').value.trim(),
+    mgr1: $('mgr1').value.trim(), tel1: $('tel1').value.trim(),
+    mgr2: $('mgr2').value.trim(), tel2: $('tel2').value.trim(),
+    server: $('server').value, serverName: SV_NAME[$('server').value],
+    gpu: $('gpu').value, purpose: $('purpose').value.trim(),
+    start: $('start').value, end: $('end').value, slots
+  };
+}
+function validate(d){
+  if(!d.who||!d.email||!d.mgr1||!d.tel1||!d.gpu||!d.purpose||!d.start||!d.end) return '필수 항목(*)을 모두 입력해 주세요.';
+  if(!$('agree').checked) return '준수사항에 동의해 주세요.';
+  if(d.slots.length===0) return '희망 이용시간대를 하나 이상 선택해 주세요.';
+  if(new Date(d.end) < new Date(d.start)) return '종료일이 시작일보다 빠릅니다.';
+  if(monthsBetween(d.start, d.end) >= 6 && !(monthsBetween(d.start,d.end)===6 && new Date(d.end).getDate()<=new Date(d.start).getDate()))
+    if(monthsBetween(d.start, d.end) > 6 || (monthsBetween(d.start,d.end)===6 && new Date(d.end).getDate()>new Date(d.start).getDate()))
+      return '이용기간은 6개월을 초과할 수 없습니다. (제7조)';
+  return null;
+}
+function summaryText(d){
+  return `[GPU 서버 사용 신청]
+· 기관: ${d.who} (${d.kind})
+· 담당(정): ${d.mgr1} / ${d.tel1} / ${d.email}
+· 담당(부): ${d.mgr2||'-'} ${d.tel2||''}
+· 희망 서버: ${d.serverName}
+· GPU 요청 수량: ${d.gpu} 기
+· 이용 목적: ${d.purpose}
+· 사용 기간: ${d.start} ~ ${d.end}
+· 희망 시간대: ${d.slots.join(', ')}`;
+}
+// 관리 앱(접수대장) 형식으로 변환
+function toApplication(d){
+  return {
+    no:"", who:d.who, kind:d.kind, server:d.server, gpu:d.gpu,
+    start:d.start, end:d.end, status:"접수",
+    note:`[신청서] 담당(정) ${d.mgr1} ${d.tel1} ${d.email}` +
+         (d.mgr2?` / 담당(부) ${d.mgr2} ${d.tel2}`:``) +
+         ` / 목적: ${d.purpose} / 희망시간대: ${d.slots.join(', ')}`
+  };
+}
+
+$('form').addEventListener('submit', async (ev)=>{
+  ev.preventDefault();
+  const d = collect();
+  const err = validate(d);
+  if(err){ showMsg('⚠ '+err, 'err'); return; }
+  $('submitBtn').disabled = true;
+
+  if(CLOUD_URL){
+    showMsg('제출 중…','ok');
+    try{
+      await fetch(CLOUD_URL, {
+        method:'POST', mode:'no-cors',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({ action:'apply', source:'apply-form', data: toApplication(d) })
+      });
+      finishDone(d);
+    }catch(e){ showMsg('제출 실패: '+e.message,'err'); $('submitBtn').disabled=false; }
+  } else {
+    // 백엔드 미연동 → 이메일 제출로 대체
+    const subject = encodeURIComponent(`[GPU 서버 사용 신청] ${d.who}`);
+    const bodyEnc = encodeURIComponent(summaryText(d) + `\n\n(본 메일을 그대로 전송해 주세요.)`);
+    window.location.href = `mailto:${MAIL_TO}?subject=${subject}&body=${bodyEnc}`;
+    finishDone(d);
+  }
+});
+
+function finishDone(d){
+  $('form').style.display='none';
+  $('summary').textContent = summaryText(d);
+  $('done').style.display='block';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+</script>
+</body>
+</html>
