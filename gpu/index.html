@@ -33,23 +33,6 @@
   .arr{display:flex;align-items:center;color:#aeb9c9;font-size:17px;font-weight:800}
   @media(max-width:820px){.step .t em{display:none}}
 
-  /* 활용 절차 스텝 */
-  .proc{background:#f0f4fb;border:1px solid #d9e2f2;border-radius:14px;padding:13px 16px 15px;margin-bottom:22px}
-  .proc-title{font-size:13px;font-weight:800;color:var(--navy);margin-bottom:11px}
-  .proc-sub{font-weight:500;color:var(--mut);font-size:11px}
-  .steps{list-style:none;display:flex;flex-wrap:wrap;align-items:stretch;gap:6px}
-  .step{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 13px}
-  .step a{display:flex;align-items:center;gap:9px;text-decoration:none;color:inherit}
-  .step .n{width:23px;height:23px;border-radius:50%;background:#c3cee0;color:#fff;font-size:12.5px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-  .step.link .n,.step.cur .n{background:var(--navy)}
-  .step .t{font-size:12.5px;font-weight:700;display:flex;flex-direction:column;line-height:1.2}
-  .step .t em{font-style:normal;font-weight:500;font-size:10px;color:var(--mut);margin-top:1px}
-  .step.link{border-color:var(--navy);box-shadow:0 1px 5px rgba(46,90,172,.15);cursor:pointer}
-  .step.link .t em{color:var(--navy);font-weight:700}
-  .step.cur{border-color:var(--navy);background:#eef2fb}
-  .arr{display:flex;align-items:center;color:#aeb9c9;font-size:17px;font-weight:800}
-  @media(max-width:820px){.step .t em{display:none}}
-
   header.top{border-bottom:3px solid var(--navy);padding-bottom:15px;margin-bottom:22px;position:relative}
   .eyebrow{color:var(--navy);font-weight:700;font-size:13px;letter-spacing:.04em}
   h1{font-size:25px;font-weight:800;margin:4px 0 6px;letter-spacing:-.01em}
@@ -511,4 +494,36 @@ async function loadFromCloud(){
       STATE = j.data; render();
       setCloud('☁ 불러옴 · ' + (j.data._synced ? new Date(j.data._synced).toLocaleString('ko-KR'):'—'), 'ok');
     } else {
-      setCloud('
+      setCloud('☁ 서버 비어있음 — 첫 저장 시 생성', '');
+    }
+  }catch(e){ setCloud('☁ 연결 실패(로컬 표시)', 'err'); }
+}
+
+async function saveToCloud(){
+  if(!CLOUD_URL){ alert('CLOUD_URL이 설정되지 않아 로컬에서만 편집됩니다.\nApps Script 배포 후 URL을 넣어주세요.'); return; }
+  setCloud('☁ 저장 중…', '');
+  try{
+    await fetch(CLOUD_URL, {
+      method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action:'save', pin:ADMIN_PIN, source:'web-admin', data:STATE })
+    });
+    // no-cors 는 응답을 못 읽으므로 1.5초 뒤 재조회로 검증
+    setTimeout(async ()=>{
+      try{
+        const res = await fetch(CLOUD_URL + '?action=read');
+        const j = await res.json();
+        if(j.status==='ok' && j.data && j.data._synced){
+          setCloud('☁ 저장됨 · ' + new Date(j.data._synced).toLocaleString('ko-KR'), 'ok');
+        } else { setCloud('☁ 저장 요청됨(확인 불가)', ''); }
+      }catch(e){ setCloud('☁ 저장 요청됨', ''); }
+    }, 1500);
+  }catch(e){ setCloud('☁ 저장 실패', 'err'); alert('저장 실패: '+e.message); }
+}
+
+/* ===================== 시작 ===================== */
+render();
+loadFromCloud();
+</script>
+</body>
+</html>
