@@ -45,6 +45,18 @@
   .slot{display:flex;align-items:center;gap:7px;border:1px solid #c7d0de;border-radius:8px;padding:8px 10px;font-size:12.5px;cursor:pointer}
   .slot input{width:16px;height:16px;accent-color:var(--navy)}
   .slot.wknd{background:#fdf6f7;border-color:#f0d6da}
+  .quickbtns{display:flex;gap:6px;margin:2px 0 10px;flex-wrap:wrap}
+  .quickbtns button{font:inherit;font-size:11.5px;font-weight:700;border:1px solid var(--navy);background:#fff;color:var(--navy);border-radius:7px;padding:4px 10px;cursor:pointer}
+  .quickbtns button:hover{background:#eef2fb}
+  .slotgrid{width:100%;border-collapse:collapse;font-size:12.5px}
+  .slotgrid th,.slotgrid td{border:1px solid var(--line);padding:7px 6px;text-align:center}
+  .slotgrid thead th{background:var(--navy);color:#fff;font-weight:700;font-size:11px;line-height:1.3}
+  .slotgrid tbody th{background:#eef2fb;font-weight:800;width:46px;cursor:pointer}
+  .slotgrid tbody th:hover{background:#dfe8f7}
+  .slotgrid tr.wknd th{background:#fdf1f3;color:#a3495a}
+  .slotgrid tr.wknd td{background:#fdf8f9}
+  .slotgrid td label{display:flex;align-items:center;justify-content:center;cursor:pointer;margin:0}
+  .slotgrid input{width:17px;height:17px;accent-color:var(--navy);cursor:pointer}
   .slotgrouplabel{font-size:11.5px;font-weight:700;color:var(--mut);margin:10px 0 6px}
   .agree{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;background:#f7f9fc;border:1px solid var(--line);border-radius:8px;padding:11px 13px}
   .agree input{width:17px;height:17px;margin-top:1px;accent-color:var(--navy)}
@@ -173,20 +185,26 @@
 
     <!-- 이용시간대 -->
     <div class="card">
-      <h2>4. 희망 이용시간대<span style="font-weight:500;font-size:12px;color:var(--mut)"> (복수 선택 가능)</span></h2>
-      <div class="slotgrouplabel">평일 <span style="font-weight:500;color:var(--mut)">· 월 · 화 · 수 · 목 · 금</span></div>
-      <div class="slots">
-        <label class="slot"><input type="checkbox" class="slotchk" value="평일 오전(09~13)"> 오전 09~13</label>
-        <label class="slot"><input type="checkbox" class="slotchk" value="평일 오후(13~18)"> 오후 13~18</label>
-        <label class="slot"><input type="checkbox" class="slotchk" value="평일 야간(18~24)"> 야간 18~24</label>
+      <h2>4. 희망 이용시간대<span style="font-weight:500;font-size:12px;color:var(--mut)"> (요일·시간대별 복수 선택)</span></h2>
+      <div class="quickbtns">
+        <button type="button" onclick="quickSel('wd')">평일 전체</button>
+        <button type="button" onclick="quickSel('we')">주말 전체</button>
+        <button type="button" onclick="quickSel('all')">전체 선택</button>
+        <button type="button" onclick="quickSel('clear')">전체 해제</button>
       </div>
-      <div class="slotgrouplabel">주말 <span style="font-weight:500;color:var(--mut)">· 토 · 일</span></div>
-      <div class="slots">
-        <label class="slot wknd"><input type="checkbox" class="slotchk" value="주말 오전(09~13)"> 오전 09~13</label>
-        <label class="slot wknd"><input type="checkbox" class="slotchk" value="주말 오후(13~18)"> 오후 13~18</label>
-        <label class="slot wknd"><input type="checkbox" class="slotchk" value="주말 야간(18~24)"> 야간 18~24</label>
-      </div>
-      <div class="note">※ 형평 배분을 위해 학과가 이용시간대를 조정·지정할 수 있습니다. (운영규정 제8조)</div>
+      <table class="slotgrid">
+        <thead><tr><th>요일</th><th>오전<br>09~13</th><th>오후<br>13~18</th><th>야간<br>18~24</th></tr></thead>
+        <tbody>
+      <tr><th onclick="toggleDay('월')">월</th><td><label><input type="checkbox" class="slotchk" data-day="월" data-type="wd" data-band="오전" value="월 오전(09~13)"></label></td><td><label><input type="checkbox" class="slotchk" data-day="월" data-type="wd" data-band="오후" value="월 오후(13~18)"></label></td><td><label><input type="checkbox" class="slotchk" data-day="월" data-type="wd" data-band="야간" value="월 야간(18~24)"></label></td></tr>
+      <tr><th onclick="toggleDay('화')">화</th><td><label><input type="checkbox" class="slotchk" data-day="화" data-type="wd" data-band="오전" value="화 오전(09~13)"></label></td><td><label><input type="checkbox" class="slotchk" data-day="화" data-type="wd" data-band="오후" value="화 오후(13~18)"></label></td><td><label><input type="checkbox" class="slotchk" data-day="화" data-type="wd" data-band="야간" value="화 야간(18~24)"></label></td></tr>
+      <tr><th onclick="toggleDay('수')">수</th><td><label><input type="checkbox" class="slotchk" data-day="수" data-type="wd" data-band="오전" value="수 오전(09~13)"></label></td><td><label><input type="checkbox" class="slotchk" data-day="수" data-type="wd" data-band="오후" value="수 오후(13~18)"></label></td><td><label><input type="checkbox" class="slotchk" data-day="수" data-type="wd" data-band="야간" value="수 야간(18~24)"></label></td></tr>
+      <tr><th onclick="toggleDay('목')">목</th><td><label><input type="checkbox" class="slotchk" data-day="목" data-type="wd" data-band="오전" value="목 오전(09~13)"></label></td><td><label><input type="checkbox" class="slotchk" data-day="목" data-type="wd" data-band="오후" value="목 오후(13~18)"></label></td><td><label><input type="checkbox" class="slotchk" data-day="목" data-type="wd" data-band="야간" value="목 야간(18~24)"></label></td></tr>
+      <tr><th onclick="toggleDay('금')">금</th><td><label><input type="checkbox" class="slotchk" data-day="금" data-type="wd" data-band="오전" value="금 오전(09~13)"></label></td><td><label><input type="checkbox" class="slotchk" data-day="금" data-type="wd" data-band="오후" value="금 오후(13~18)"></label></td><td><label><input type="checkbox" class="slotchk" data-day="금" data-type="wd" data-band="야간" value="금 야간(18~24)"></label></td></tr>
+      <tr class="wknd"><th onclick="toggleDay('토')">토</th><td><label><input type="checkbox" class="slotchk" data-day="토" data-type="we" data-band="오전" value="토 오전(09~13)"></label></td><td><label><input type="checkbox" class="slotchk" data-day="토" data-type="we" data-band="오후" value="토 오후(13~18)"></label></td><td><label><input type="checkbox" class="slotchk" data-day="토" data-type="we" data-band="야간" value="토 야간(18~24)"></label></td></tr>
+      <tr class="wknd"><th onclick="toggleDay('일')">일</th><td><label><input type="checkbox" class="slotchk" data-day="일" data-type="we" data-band="오전" value="일 오전(09~13)"></label></td><td><label><input type="checkbox" class="slotchk" data-day="일" data-type="we" data-band="오후" value="일 오후(13~18)"></label></td><td><label><input type="checkbox" class="slotchk" data-day="일" data-type="we" data-band="야간" value="일 야간(18~24)"></label></td></tr>
+      </tbody>
+      </table>
+      <div class="note" style="margin-top:8px">※ 요일 이름을 누르면 그 요일 전체가 선택/해제됩니다. 형평 배분을 위해 학과가 이용시간대를 조정·지정할 수 있습니다. (운영규정 제8조)</div>
     </div>
 
     <!-- 준수사항 -->
@@ -228,6 +246,18 @@ function monthsBetween(s, e){
   return (b.getFullYear()-a.getFullYear())*12 + (b.getMonth()-a.getMonth()) - (b.getDate()<a.getDate()?1:0);
 }
 function showMsg(text, cls){ const m=$('msg'); m.textContent=text; m.className='msg '+cls; }
+function quickSel(kind){
+  document.querySelectorAll('.slotchk').forEach(c=>{
+    if(kind==='clear') c.checked=false;
+    else if(kind==='all') c.checked=true;
+    else if(c.dataset.type===kind) c.checked=true;
+  });
+}
+function toggleDay(day){
+  const cs=[...document.querySelectorAll('.slotchk')].filter(c=>c.dataset.day===day);
+  const allOn=cs.every(c=>c.checked);
+  cs.forEach(c=>c.checked=!allOn);
+}
 
 function collect(){
   const slots = Array.from(document.querySelectorAll('.slotchk:checked')).map(c=>c.value);
