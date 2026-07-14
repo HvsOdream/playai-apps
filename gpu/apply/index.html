@@ -10,6 +10,32 @@
   body{font-family:"Malgun Gothic","맑은 고딕","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;
        background:var(--bg);color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased}
   .wrap{max-width:720px;margin:0 auto;padding:28px 20px 70px}
+  .proc{background:#f0f4fb;border:1px solid #d9e2f2;border-radius:14px;padding:13px 16px 15px;margin-bottom:18px}
+  .proc-title{font-size:13px;font-weight:800;color:var(--navy);margin-bottom:11px}
+  .proc-sub{font-weight:500;color:var(--mut);font-size:11px}
+  .steps{list-style:none;display:flex;flex-wrap:wrap;align-items:stretch;gap:6px}
+  .step{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 13px}
+  .step .n{width:23px;height:23px;border-radius:50%;background:#c3cee0;color:#fff;font-size:12.5px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .step.cur .n{background:var(--navy)}
+  .step .t{font-size:12.5px;font-weight:700;display:flex;flex-direction:column;line-height:1.2}
+  .step .t em{font-style:normal;font-weight:500;font-size:10px;color:var(--mut);margin-top:1px}
+  .step.cur{border-color:var(--navy);background:#eef2fb}
+  .step.cur .t em{color:var(--navy);font-weight:700}
+  .arr{display:flex;align-items:center;color:#aeb9c9;font-size:17px;font-weight:800}
+  @media(max-width:820px){.step .t em{display:none}}
+  .proc{background:#f0f4fb;border:1px solid #d9e2f2;border-radius:14px;padding:13px 16px 15px;margin-bottom:18px}
+  .proc-title{font-size:13px;font-weight:800;color:var(--navy);margin-bottom:11px}
+  .proc-sub{font-weight:500;color:var(--mut);font-size:11px}
+  .steps{list-style:none;display:flex;flex-wrap:wrap;align-items:stretch;gap:6px}
+  .step{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 13px}
+  .step .n{width:23px;height:23px;border-radius:50%;background:#c3cee0;color:#fff;font-size:12.5px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .step.cur .n{background:var(--navy)}
+  .step .t{font-size:12.5px;font-weight:700;display:flex;flex-direction:column;line-height:1.2}
+  .step .t em{font-style:normal;font-weight:500;font-size:10px;color:var(--mut);margin-top:1px}
+  .step.cur{border-color:var(--navy);background:#eef2fb}
+  .step.cur .t em{color:var(--navy);font-weight:700}
+  .arr{display:flex;align-items:center;color:#aeb9c9;font-size:17px;font-weight:800}
+  @media(max-width:820px){.step .t em{display:none}}
   header.top{border-bottom:3px solid var(--navy);padding-bottom:15px;margin-bottom:20px}
   .eyebrow{color:var(--navy);font-weight:700;font-size:13px;letter-spacing:.04em}
   h1{font-size:23px;font-weight:800;margin:5px 0 6px}
@@ -58,6 +84,21 @@
     <h1>고사양 GPU 서버 사용 신청서</h1>
     <div class="sub">서버 이용을 위해 아래 항목을 작성해 제출해 주세요. 학과 검토 후 GPU 슬롯·이용시간대를 배정합니다.</div>
   </header>
+
+  <div class="proc">
+    <div class="proc-title">📋 서버 활용 절차 <span class="proc-sub">— 지금은 1단계입니다</span></div>
+    <ol class="steps">
+      <li class="step cur"><span class="n">1</span><span class="t">사용 계획서 제출<em>← 지금 이 단계</em></span></li>
+      <li class="arr">›</li>
+      <li class="step"><span class="n">2</span><span class="t">학과장 승인</span></li>
+      <li class="arr">›</li>
+      <li class="step"><span class="n">3</span><span class="t">사용시간 입력</span></li>
+      <li class="arr">›</li>
+      <li class="step"><span class="n">4</span><span class="t">조교 승인</span></li>
+      <li class="arr">›</li>
+      <li class="step"><span class="n">5</span><span class="t">포트 제공</span></li>
+    </ol>
+  </div>
 
   <form id="form">
     <!-- 신청 기관 -->
@@ -223,59 +264,4 @@ function validate(d){
   return null;
 }
 function summaryText(d){
-  return `[GPU 서버 사용 신청]
-· 기관: ${d.who} (${d.kind})
-· 담당(정): ${d.mgr1} / ${d.tel1} / ${d.email}
-· 담당(부): ${d.mgr2||'-'} ${d.tel2||''}
-· 희망 서버: ${d.serverName}
-· GPU 요청 수량: ${d.gpu} 기
-· 이용 목적: ${d.purpose}
-· 사용 기간: ${d.start} ~ ${d.end}
-· 희망 시간대: ${d.slots.join(', ')}`;
-}
-// 관리 앱(접수대장) 형식으로 변환
-function toApplication(d){
-  return {
-    no:"", who:d.who, kind:d.kind, server:d.server, gpu:d.gpu,
-    start:d.start, end:d.end, status:"접수",
-    note:`[신청서] 담당(정) ${d.mgr1} ${d.tel1} ${d.email}` +
-         (d.mgr2?` / 담당(부) ${d.mgr2} ${d.tel2}`:``) +
-         ` / 목적: ${d.purpose} / 희망시간대: ${d.slots.join(', ')}`
-  };
-}
-
-$('form').addEventListener('submit', async (ev)=>{
-  ev.preventDefault();
-  const d = collect();
-  const err = validate(d);
-  if(err){ showMsg('⚠ '+err, 'err'); return; }
-  $('submitBtn').disabled = true;
-
-  if(CLOUD_URL){
-    showMsg('제출 중…','ok');
-    try{
-      await fetch(CLOUD_URL, {
-        method:'POST', mode:'no-cors',
-        headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify({ action:'apply', source:'apply-form', data: toApplication(d) })
-      });
-      finishDone(d);
-    }catch(e){ showMsg('제출 실패: '+e.message,'err'); $('submitBtn').disabled=false; }
-  } else {
-    // 백엔드 미연동 → 이메일 제출로 대체
-    const subject = encodeURIComponent(`[GPU 서버 사용 신청] ${d.who}`);
-    const bodyEnc = encodeURIComponent(summaryText(d) + `\n\n(본 메일을 그대로 전송해 주세요.)`);
-    window.location.href = `mailto:${MAIL_TO}?subject=${subject}&body=${bodyEnc}`;
-    finishDone(d);
-  }
-});
-
-function finishDone(d){
-  $('form').style.display='none';
-  $('summary').textContent = summaryText(d);
-  $('done').style.display='block';
-  window.scrollTo({top:0,behavior:'smooth'});
-}
-</script>
-</body>
-</html>
+  return `[GPU 서
