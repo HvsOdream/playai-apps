@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI게임융합학과 · 고사양 서버 이용관리</title>
+<style>
+  :root{
+    --navy:#2E5AAC; --navy-d:#1f3f7a; --ink:#1c2430; --mut:#66707d;
+    --line:#e3e8f0; --bg:#f5f7fb; --card:#ffffff;
+    --occ:#f7b267; --occ-bg:#fdecd8; --free:#8bc48a;
+    --warn:#e08a3c; --warnbg:#fff4e6; --ok:#3f7a3f;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Malgun Gothic","맑은 고딕","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;
+       background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1140px;margin:0 auto;padding:24px 20px 70px}
+
+  header.top{border-bottom:3px solid var(--navy);padding-bottom:15px;margin-bottom:22px;position:relative}
+  .eyebrow{color:var(--navy);font-weight:700;font-size:13px;letter-spacing:.04em}
+  h1{font-size:25px;font-weight:800;margin:4px 0 6px;letter-spacing:-.01em}
+  .sub{color:var(--mut);font-size:13.5px}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
+  .badge{display:inline-block;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px}
+  .badge.ro{background:#eef2fb;color:var(--navy)}
+  .badge.date{background:#eef4ee;color:#3f7a3f}
+  .badge.admin{background:#fde3cf;color:#9a5a1c}
+  .cloud-status{font-size:11.5px;color:var(--mut)}
+  .cloud-status.ok{color:var(--ok)} .cloud-status.err{color:#b5482f}
+
+  .adminbar{position:absolute;top:0;right:0;display:flex;gap:8px;align-items:center}
+  button.btn{font:inherit;font-size:12.5px;font-weight:700;border:1px solid var(--navy);
+    background:#fff;color:var(--navy);border-radius:8px;padding:6px 13px;cursor:pointer}
+  button.btn:hover{background:#eef2fb}
+  button.btn.solid{background:var(--navy);color:#fff}
+  button.btn.solid:hover{background:var(--navy-d)}
+  button.btn.warn{border-color:#c9553d;color:#c9553d}
+  button.btn.warn:hover{background:#fdece8}
+  .hidden{display:none !important}
+
+  h2.sec{font-size:16px;font-weight:800;margin:28px 0 13px;padding-left:11px;border-left:4px solid var(--navy);
+    display:flex;align-items:center;gap:10px}
+  h2.sec .hint{font-size:11.5px;font-weight:600;color:var(--warn)}
+
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:860px){.cards{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:17px 17px 15px;
+        box-shadow:0 1px 3px rgba(30,50,90,.05)}
+  .card h3{font-size:15px;font-weight:800;margin-bottom:2px}
+  .card .loc{font-size:11.5px;color:var(--mut);margin-bottom:11px}
+  .gpu-row{display:flex;align-items:baseline;gap:6px;margin-bottom:7px}
+  .gpu-big{font-size:29px;font-weight:800;color:var(--navy);line-height:1}
+  .gpu-unit{font-size:12.5px;color:var(--mut)}
+  .bar{height:9px;border-radius:6px;background:#eef1f6;overflow:hidden;display:flex;margin:6px 0 4px}
+  .bar .used{background:var(--occ)} .bar .free{background:var(--free)}
+  .legend-mini{font-size:11px;color:var(--mut);display:flex;gap:12px;margin-bottom:11px}
+  .legend-mini b{color:var(--ink)}
+  .spec{font-size:11.5px;color:#48505c;border-top:1px dashed var(--line);padding-top:9px;line-height:1.7}
+  .spec span{color:var(--mut)}
+
+  .note{background:var(--warnbg);border:1px solid #f3d9b6;border-radius:10px;padding:10px 13px;
+        font-size:12.5px;color:#8a5a1e;margin-top:12px}
+
+  table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);
+        border-radius:12px;overflow:hidden;font-size:12.5px}
+  th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
+  thead th{background:var(--navy);color:#fff;font-weight:700;font-size:12px;white-space:nowrap}
+  tbody tr:last-child td{border-bottom:none}
+  td.c,th.c{text-align:center}
+
+  .grid-tbl td.slot{font-weight:700;background:#eef2fb;color:#33415a;white-space:nowrap;font-size:12px}
+  .cell{text-align:center;min-width:150px}
+  .cell.occ{background:var(--occ-bg)}
+  .occ-name{font-weight:700;color:#9a5a1c;font-size:12.5px}
+  .occ-period{font-size:10.5px;color:#7a5a2e;margin-top:1px}
+  .occ-free{color:#aab2bd;font-size:16px}
+  .pill{display:inline-block;font-size:10px;font-weight:700;padding:1px 7px;border-radius:12px;margin-top:3px}
+  .pill.rev{background:#fde3cf;color:#9a5a1c}
+  .pill.asn{background:#dceadd;color:#3f7a3f}
+  .pill.chk{background:#f0e6cf;color:#8a6b2e}
+  select.cellsel,select.inp,input.inp{font:inherit;font-size:11.5px;border:1px solid #c7d0de;border-radius:6px;
+    padding:3px 5px;width:100%;background:#fff;color:var(--ink)}
+  input.inp{min-width:70px}
+  .st{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:12px}
+  .st.review{background:#fff0dd;color:#a86a1e} .st.assigned{background:#e6f2e3;color:#3f7a3f}
+
+  .foot{margin-top:20px;font-size:11.5px;color:var(--mut);line-height:1.8}
+  .foot .k{color:var(--warn);font-weight:700}
+  .rowtools{white-space:nowrap}
+  .linkbtn{background:none;border:none;color:#c9553d;font:inherit;font-size:11.5px;cursor:pointer;font-weight:700}
+  .addrow{margin-top:8px}
+
+  /* 2주 캘린더 */
+  .cal-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap}
+  .tab{font-size:12.5px;font-weight:700;border:1px solid var(--line);background:#fff;color:var(--mut);
+    border-radius:8px;padding:6px 13px;cursor:pointer}
+  .tab.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .nav{display:flex;gap:8px;align-items:center;margin-left:auto}
+  .nav button{font:inherit;font-size:14px;border:1px solid var(--line);background:#fff;border-radius:7px;
+    width:32px;height:30px;cursor:pointer;color:var(--navy);font-weight:800}
+  .nav button:hover{background:#eef2fb}
+  .nav .range{font-size:12.5px;font-weight:700;color:var(--ink);min-width:170px;text-align:center}
+  .cal-tbl td.day{white-space:nowrap;font-weight:700;background:#f3f6fb;font-size:12px;width:130px}
+  .cal-tbl tr.we td.day{background:#fbeef0;color:#a3495a}
+  .cal-tbl tr.we td{background:#fdf6f7}
+  .cal-tbl td.band{text-align:center;font-size:12px}
+  .cal-occ{font-weight:700;color:#9a5a1c;font-size:12px}
+  .cal-occ small{display:block;font-weight:700;color:#a86a1e;font-size:9.5px;margin-top:1px}
+  .cal-free{color:#c8d0da;font-size:15px}
+  .cal-tbl tr.today td.day{box-shadow:inset 3px 0 0 var(--navy)}
+  .cal-note{font-size:11.5px;color:var(--mut);margin-top:8px}
+
+  /* modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(20,30,50,.45);display:flex;align-items:center;justify-content:center;z-index:50}
+  .modal{background:#fff;border-radius:14px;padding:22px;width:320px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+  .modal h4{font-size:15px;margin-bottom:12px}
+  .modal input{width:100%;font:inherit;font-size:14px;padding:9px;border:1px solid #c7d0de;border-radius:8px;margin-bottom:12px}
+  .modal .row{display:flex;gap:8px;justify-content:flex-end}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="eyebrow">서일대학교 · AI게임융합학과</div>
+    <h1>고사양 서버 이용관리</h1>
+    <div class="sub">GPU 서버 3대의 점유·잔여 및 시간대·이용기간 배정 관리</div>
+    <div class="meta">
+      <span class="badge date" id="asof">기준일 —</span>
+      <span class="badge ro" id="modeBadge">조회 모드</span>
+      <span class="cloud-status" id="cloudStatus">클라우드 확인 중…</span>
+    </div>
+    <div class="adminbar">
+      <button class="btn" id="loginBtn" onclick="openLogin()">🔒 관리자</button>
+      <button class="btn solid hidden" id="saveBtn" onclick="saveToCloud()">☁ 저장</button>
+      <button class="btn hidden" id="logoutBtn" onclick="exitAdmin()">완료</button>
+    </div>
+  </header>
+
+  <h2 class="sec">서버별 GPU 점유현황</h2>
+  <div class="cards" id="cards"></div>
+  <div class="note" id="pendNote"></div>
+
+  <h2 class="sec">2주 예약 현황</h2>
+  <div class="cal-toolbar">
+    <div class="tabs" id="calTabs"></div>
+    <div class="nav">
+      <button onclick="shiftWeeks(-14)" title="이전 2주">‹</button>
+      <span class="range" id="calRange">—</span>
+      <button onclick="shiftWeeks(14)" title="다음 2주">›</button>
+      <button onclick="gotoToday()" title="오늘로" style="width:auto;padding:0 10px;font-size:12px">오늘</button>
+    </div>
+  </div>
+  <table class="cal-tbl">
+    <thead><tr><th class="day">날짜</th><th class="c">오전 (09~13)</th><th class="c">오후 (13~18)</th><th class="c">야간 (18~24)</th></tr></thead>
+    <tbody id="cal2wk"></tbody>
+  </table>
+  <div class="cal-note">※ 정기 배정 패턴 × 이용기간(시작~종료)을 실제 날짜로 펼친 현황입니다. 주말·공휴일은 붉은색. 배정은 아래 <b>정기 배정 패턴</b>에서 관리합니다.</div>
+
+  <h2 class="sec">정기 배정 패턴 <span class="hint" id="gridHint"></span></h2>
+  <table class="grid-tbl">
+    <thead>
+      <tr><th class="c">시간대 구분</th><th class="c">H200 GPU 서버</th><th class="c">Poseidon AI 서버</th><th class="c">ThreadRipper GPU 서버</th></tr>
+    </thead>
+    <tbody id="grid"></tbody>
+  </table>
+  <div class="foot">
+    <span class="k">■ 범례</span> &nbsp; <span class="pill rev">신청중</span> 검토 중 &nbsp;
+    <span class="pill asn">배정</span> 배정 완료 &nbsp; <span class="pill chk">확인필요</span> 기존 이용·시간대 미확인 &nbsp;
+    <span style="color:#aab2bd">□</span> 여유
+  </div>
+
+  <h2 class="sec">이용 신청 접수 현황 <span class="hint" id="appHint"></span></h2>
+  <table>
+    <thead>
+      <tr><th>신청번호</th><th>신청주체</th><th>구분</th><th>희망 서버</th><th class="c">GPU</th>
+      <th>사용 시작일</th><th>사용 종료일</th><th class="c">상태</th><th class="c admincol hidden"></th></tr>
+    </thead>
+    <tbody id="apps"></tbody>
+  </table>
+  <div class="addrow admincol hidden"><button class="btn" onclick="addApp()">＋ 신청 추가</button></div>
+
+  <div class="foot">
+    ※ 이용시간대는 <b>평일·주말 각각 오전(09~13)·오후(13~18)·야간(18~24)</b>으로 구분해 배정합니다.<br>
+    ※ 1회 배정 이용기간은 <b>6개월 이내</b>이며, 종료일 미기재 신청은 접수되지 않습니다. (운영규정 제7조)<br>
+    ※ 시간표 각 칸에는 <b>이용자 · 이용기간(시작~종료)</b>이 함께 표시됩니다. 관리자 모드에서 칸을 눌러 배정하면 기간이 자동으로 따라붙습니다.
+  </div>
+</div>
+
+<!-- 로그인 모달 -->
+<div class="modal-bg hidden" id="loginModal">
+  <div class="modal">
+    <h4>🔒 관리자 로그인</h4>
+    <input type="password" id="pinInput" placeholder="관리자 PIN" onkeydown="if(event.key==='Enter')doLogin()">
+    <div class="row">
+      <button class="btn" onclick="closeLogin()">취소</button>
+      <button class="btn solid" onclick="doLogin()">로그인</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===================== 설정 ===================== */
+// Apps Script 웹앱 /exec URL (배포 후 붙여넣기). 비어 있으면 SEED 로컬 데이터만 사용.
+const CLOUD_URL = "";
+// 관리자 PIN — Apps Script의 WRITE_PIN 과 반드시 동일하게.
+const ADMIN_PIN = "7399";
+
+/* ===================== 고정 정의 ===================== */
+const SLOTS = [
+  {id:"wd_am", label:"평일 · 오전 (09~13)"},
+  {id:"wd_pm", label:"평일 · 오후 (13~18)"},
+  {id:"wd_ni", label:"평일 · 야간 (18~24)"},
+  {id:"we_am", label:"주말·공휴일 · 오전 (09~13)"},
+  {id:"we_pm", label:"주말·공휴일 · 오후 (13~18)"},
+  {id:"we_ni", label:"주말·공휴일 · 야간 (18~24)"}
+];
+const SERVERS = [
+  {id:"h200", name:"H200 GPU 서버", total:4, gpu:"NVIDIA H200 SXM 141GB ×4",
+   cpu:"Xeon Platinum 8558 (48C) ×2", mem:"DDR5 1TB", loc:"배양관 6층 디지털혁신본부 서버실"},
+  {id:"poseidon", name:"Poseidon AI 서버", total:3, gpu:"RTX 4090 24GB ×3",
+   cpu:"Xeon Silver 4310 (12C) ×2", mem:"DDR4 256GB", loc:"호천관 5층 501호 학과사무실"},
+  {id:"threadripper", name:"ThreadRipper GPU 서버", total:2, gpu:"RTX 4090 24GB ×2",
+   cpu:"Threadripper PRO 5995WX (64C)", mem:"DDR4 128GB", loc:"호천관 5층 501호 학과사무실"}
+];
+const svById = id => SERVERS.find(s=>s.id===id);
+
+/* ===================== SEED (초기 데이터) ===================== */
+const SEED = {
+  asOf: "2026-07-14",
+  applications: [
+    {no:"2026-001", who:"㈜모빌테크", kind:"산학협력기업", server:"h200", gpu:"",
+     start:"2026-07-13", end:"2027-01-12", status:"검토중",
+     note:"GPU 수량 미기재(계획서 '-')·종료일 보완요청 필요"},
+    {no:"기존-01", who:"AI-Pi 학생연구회", kind:"학생연구회", server:"h200", gpu:"",
+     start:"", end:"", status:"배정(기존)", note:"GPU 수량·기간·시간대 확인 필요"},
+    {no:"기존-02", who:"㈜사자가온다", kind:"산학협력기업", server:"h200", gpu:"",
+     start:"", end:"", status:"배정(기존)", note:"확인 필요"},
+    {no:"기존-03", who:"㈜큐브베리", kind:"산학협력기업", server:"poseidon", gpu:"",
+     start:"", end:"", status:"배정(기존)", note:"확인 필요"},
+    {no:"기존-04", who:"㈜사자가온다", kind:"산학협력기업", server:"threadripper", gpu:"",
+     start:"", end:"", status:"배정(기존)", note:"확인 필요"}
+  ],
+  // assignments[slotId][serverId] = 신청번호(no) | null
+  assignments: {
+    wd_am:{h200:null, poseidon:null, threadripper:null},
+    wd_pm:{h200:null, poseidon:null, threadripper:null},
+    wd_ni:{h200:"2026-001", poseidon:null, threadripper:null},
+    we_am:{h200:"2026-001", poseidon:null, threadripper:null},
+    we_pm:{h200:"2026-001", poseidon:null, threadripper:null},
+    we_ni:{h200:"2026-001", poseidon:null, threadripper:null}
+  }
+};
+
+/* ===================== 상태 ===================== */
+let STATE = JSON.parse(JSON.stringify(SEED));
+let adminMode = false;
+
+/* ===================== 유틸 ===================== */
+const appByNo = no => STATE.applications.find(a=>a.no===no);
+function periodText(a){
+  if(!a) return "";
+  if(a.start && a.end) return a.start + " ~ " + a.end;
+  return "기간 확인필요";
+}
+function statusPill(a){
+  if(!a) return "";
+  if(String(a.status).startsWith("배정")) return `<span class="pill asn">배정</span>`;
+  if(a.status==="검토중") return `<span class="pill rev">신청중</span>`;
+  return `<span class="pill chk">${a.status}</span>`;
+}
+function assignedGPU(serverId){
+  return STATE.applications
+    .filter(a=>a.server===serverId && String(a.status).startsWith("배정"))
+    .reduce((s,a)=> s + (parseInt(a.gpu,10)||0), 0);
+}
+
+/* ===================== 2주 캘린더 ===================== */
+// 공휴일(yyyy-mm-dd) — 필요 시 추가하면 붉은색·주말 취급됨
+const HOLIDAYS = [];
+const WDAY = ['일','월','화','수','목','금','토'];
+function parseD(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
+function fmtD(dt){ return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
+function addDays(dt,n){ const x=new Date(dt); x.setDate(x.getDate()+n); return x; }
+function isWeekend(dt){ const g=dt.getDay(); return g===0||g===6||HOLIDAYS.includes(fmtD(dt)); }
+function todayD(){ const n=new Date(); return new Date(n.getFullYear(),n.getMonth(),n.getDate()); }
+function inPeriod(dt,a){
+  if(!a) return false;
+  if(a.start && a.end){ return parseD(a.start)<=dt && dt<=parseD(a.end); }
+  return true; // 기간 미기재는 일단 표시(확인필요)
+}
+let VIEW_START = todayD();
+let CUR_TAB = 'h200';
+
+function render2Week(){
+  // 탭
+  document.getElementById('calTabs').innerHTML = SERVERS.map(s=>
+    `<button class="tab ${s.id===CUR_TAB?'on':''}" onclick="setTab('${s.id}')">${s.name}</button>`).join('');
+  const end = addDays(VIEW_START,13);
+  document.getElementById('calRange').textContent = fmtD(VIEW_START)+' ~ '+fmtD(end);
+  const tD = todayD();
+  const bands=[['am','오전'],['pm','오후'],['ni','야간']];
+  let rows='';
+  for(let i=0;i<14;i++){
+    const dt=addDays(VIEW_START,i);
+    const we=isWeekend(dt);
+    const isToday = fmtD(dt)===fmtD(tD);
+    const dayType = we?'we':'wd';
+    const cells = bands.map(([b])=>{
+      const slotId=dayType+'_'+b;
+      const no=(STATE.assignments[slotId]||{})[CUR_TAB]||null;
+      const a=no?appByNo(no):null;
+      if(a && inPeriod(dt,a)){
+        const tag = a.status==='검토중' ? '<small>신청중</small>' : (String(a.status).startsWith('배정')?'<small>배정</small>':'<small>'+a.status+'</small>');
+        return `<td class="band"><span class="cal-occ">${a.who}${tag}</span></td>`;
+      }
+      return `<td class="band"><span class="cal-free">□</span></td>`;
+    }).join('');
+    rows+=`<tr class="${we?'we':''} ${isToday?'today':''}"><td class="day">${fmtD(dt)} (${WDAY[dt.getDay()]})</td>${cells}</tr>`;
+  }
+  document.getElementById('cal2wk').innerHTML=rows;
+}
+function setTab(id){ CUR_TAB=id; render2Week(); }
+function shiftWeeks(n){ VIEW_START=addDays(VIEW_START,n); render2Week(); }
+function gotoToday(){ VIEW_START=todayD(); render2Week(); }
+
+/* ===================== 렌더 ===================== */
+function render(){
+  document.getElementById('asof').textContent = "기준일 " + (STATE.asOf||"—");
+  renderCards();
+  render2Week();
+  renderGrid();
+  renderApps();
+  renderPendNote();
+  // 모드 표시
+  document.getElementById('modeBadge').textContent = adminMode ? "관리자 모드" : "조회 모드";
+  document.getElementById('modeBadge').className = "badge " + (adminMode?"admin":"ro");
+  document.getElementById('gridHint').textContent = adminMode ? "칸을 선택해 이용자를 배정/해제하세요" : "";
+  document.getElementById('appHint').textContent = adminMode ? "값을 직접 수정할 수 있습니다" : "";
+  document.querySelectorAll('.admincol').forEach(el=> el.classList.toggle('hidden', !adminMode));
+  document.getElementById('saveBtn').classList.toggle('hidden', !adminMode);
+  document.getElementById('logoutBtn').classList.toggle('hidden', !adminMode);
+  document.getElementById('loginBtn').classList.toggle('hidden', adminMode);
+}
+
+function renderCards(){
+  document.getElementById('cards').innerHTML = SERVERS.map(s=>{
+    const asn = assignedGPU(s.id);
+    const free = s.total - asn;
+    const usedPct = s.total ? (asn/s.total*100) : 0;
+    return `<div class="card">
+      <h3>${s.name}</h3><div class="loc">📍 ${s.loc}</div>
+      <div class="gpu-row"><span class="gpu-big">${free}</span><span class="gpu-unit">/ ${s.total} GPU 여유</span></div>
+      <div class="bar"><div class="used" style="width:${usedPct}%"></div><div class="free" style="width:${100-usedPct}%"></div></div>
+      <div class="legend-mini"><span>배정 <b>${asn}</b></span><span>잔여 <b>${free}</b></span><span>총 <b>${s.total}</b></span></div>
+      <div class="spec"><span>GPU</span> ${s.gpu}<br><span>CPU</span> ${s.cpu} &nbsp; <span>MEM</span> ${s.mem}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderGrid(){
+  const rows = SLOTS.map(slot=>{
+    const tds = SERVERS.map(sv=>{
+      const no = (STATE.assignments[slot.id]||{})[sv.id] || null;
+      const a = no ? appByNo(no) : null;
+      if(adminMode){
+        // 해당 서버를 희망한 신청건만 후보로
+        const cands = STATE.applications.filter(x=>x.server===sv.id);
+        const opts = ['<option value="">— 비움 —</option>']
+          .concat(cands.map(x=>`<option value="${x.no}" ${x.no===no?'selected':''}>${x.who} (${x.no})</option>`))
+          .join('');
+        return `<td class="cell ${a?'occ':''}">
+          <select class="cellsel" onchange="assign('${slot.id}','${sv.id}',this.value)">${opts}</select>
+          ${a?`<div class="occ-period">${periodText(a)}</div>`:''}
+        </td>`;
+      }
+      if(!a) return `<td class="cell"><span class="occ-free">□</span></td>`;
+      return `<td class="cell occ">
+        <div class="occ-name">${a.who}</div>
+        <div class="occ-period">${periodText(a)}</div>
+        ${statusPill(a)}
+      </td>`;
+    }).join('');
+    return `<tr><td class="slot">${slot.label}</td>${tds}</tr>`;
+  }).join('');
+  document.getElementById('grid').innerHTML = rows;
+}
+
+function renderApps(){
+  document.getElementById('apps').innerHTML = STATE.applications.map((a,i)=>{
+    const st = String(a.status).startsWith("배정") ? 'assigned':'review';
+    if(adminMode){
+      const svOpts = SERVERS.map(s=>`<option value="${s.id}" ${s.id===a.server?'selected':''}>${s.name}</option>`).join('');
+      return `<tr>
+        <td><input class="inp" value="${a.no}" onchange="editApp(${i},'no',this.value)" style="min-width:64px"></td>
+        <td><input class="inp" value="${a.who}" onchange="editApp(${i},'who',this.value)"></td>
+        <td><input class="inp" value="${a.kind}" onchange="editApp(${i},'kind',this.value)" style="min-width:80px"></td>
+        <td><select class="inp" onchange="editApp(${i},'server',this.value)">${svOpts}</select></td>
+        <td class="c"><input class="inp" value="${a.gpu}" onchange="editApp(${i},'gpu',this.value)" style="width:46px;text-align:center" placeholder="수"></td>
+        <td><input class="inp" type="date" value="${a.start}" onchange="editApp(${i},'start',this.value)"></td>
+        <td><input class="inp" type="date" value="${a.end}" onchange="editApp(${i},'end',this.value)"></td>
+        <td class="c"><select class="inp" onchange="editApp(${i},'status',this.value)">
+          ${['검토중','접수','배정','배정(기존)','연장','종료','반려'].map(s=>`<option ${s===a.status?'selected':''}>${s}</option>`).join('')}
+        </select></td>
+        <td class="c rowtools"><button class="linkbtn" onclick="delApp(${i})">삭제</button></td>
+      </tr>`;
+    }
+    return `<tr>
+      <td>${a.no}</td><td><b>${a.who}</b></td><td>${a.kind}</td><td>${svById(a.server)?svById(a.server).name:a.server}</td>
+      <td class="c">${a.gpu||'—'}</td><td>${a.start||'—'}</td><td>${a.end||'—'}</td>
+      <td class="c"><span class="st ${st}">${a.status}</span></td>
+      <td class="c admincol hidden"></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderPendNote(){
+  // 시간대 미배정 배정건(기존 등) 안내
+  const placed = new Set();
+  Object.values(STATE.assignments).forEach(row=>Object.values(row).forEach(v=>{ if(v) placed.add(v); }));
+  const pend = STATE.applications.filter(a=>String(a.status).startsWith("배정") && !placed.has(a.no));
+  const el = document.getElementById('pendNote');
+  if(pend.length){
+    el.classList.remove('hidden');
+    el.innerHTML = `⚠ 아래 이용건은 <b>GPU 수량·이용기간·시간대가 미확인</b>이라 배정량·잔여량이 실제와 다를 수 있습니다: `
+      + pend.map(a=>`${a.who}(${svById(a.server)?svById(a.server).name:a.server})`).join(' · ')
+      + `. 관리자 모드에서 신청 정보를 채우고 시간표에 배정하면 자동 반영됩니다.`;
+  } else { el.classList.add('hidden'); }
+}
+
+/* ===================== 편집 액션 ===================== */
+function assign(slotId, svId, no){
+  if(!STATE.assignments[slotId]) STATE.assignments[slotId]={};
+  STATE.assignments[slotId][svId] = no || null;
+  renderGrid(); renderCards(); renderPendNote();
+}
+function editApp(i, field, val){
+  STATE.applications[i][field] = val;
+  // 서버를 바꾸면 기존 시간표 배정에서 해당 no 제거(불일치 방지)
+  if(field==='server' || field==='no'){ renderGrid(); }
+  renderCards(); renderApps(); renderPendNote();
+}
+function addApp(){
+  STATE.applications.push({no:"신규", who:"", kind:"", server:"h200", gpu:"", start:"", end:"", status:"접수", note:""});
+  renderApps();
+}
+function delApp(i){
+  const no = STATE.applications[i].no;
+  STATE.applications.splice(i,1);
+  // 시간표에서도 제거
+  Object.values(STATE.assignments).forEach(row=>{ for(const k in row){ if(row[k]===no) row[k]=null; } });
+  render();
+}
+
+/* ===================== 관리자 로그인 ===================== */
+function openLogin(){ document.getElementById('loginModal').classList.remove('hidden'); document.getElementById('pinInput').focus(); }
+function closeLogin(){ document.getElementById('loginModal').classList.add('hidden'); document.getElementById('pinInput').value=''; }
+function doLogin(){
+  if(document.getElementById('pinInput').value === ADMIN_PIN){ adminMode=true; closeLogin(); render(); }
+  else { alert('PIN이 올바르지 않습니다.'); }
+}
+function exitAdmin(){ adminMode=false; render(); }
+
+/* ===================== 클라우드 ===================== */
+function setCloud(msg, cls){ const el=document.getElementById('cloudStatus'); el.textContent=msg; el.className='cloud-status '+(cls||''); }
+
+async function loadFromCloud(){
+  if(!CLOUD_URL){ setCloud('로컬 데이터(미연동)', ''); return; }
+  try{
+    const res = await fetch(CLOUD_URL + '?action=read');
+    const j = await res.json();
+    if(j.status==='ok' && j.data && j.data.applications){
+      STATE = j.data; render();
+      setCloud('☁ 불러옴 · ' + (j.data._synced ? new Date(j.data._synced).toLocaleString('ko-KR'):'—'), 'ok');
+    } else {
+      setCloud('☁ 서버 비어있음 — 첫 저장 시 생성', '');
+    }
+  }catch(e){ setCloud('☁ 연결 실패(로컬 표시)', 'err'); }
+}
+
+async function saveToCloud(){
+  if(!CLOUD_URL){ alert('CLOUD_URL이 설정되지 않아 로컬에서만 편집됩니다.\nApps Script 배포 후 URL을 넣어주세요.'); return; }
+  setCloud('☁ 저장 중…', '');
+  try{
+    await fetch(CLOUD_URL, {
+      method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action:'save', pin:ADMIN_PIN, source:'web-admin', data:STATE })
+    });
+    // no-cors 는 응답을 못 읽으므로 1.5초 뒤 재조회로 검증
+    setTimeout(async ()=>{
+      try{
+        const res = await fetch(CLOUD_URL + '?action=read');
+        const j = await res.json();
+        if(j.status==='ok' && j.data && j.data._synced){
+          setCloud('☁ 저장됨 · ' + new Date(j.data._synced).toLocaleString('ko-KR'), 'ok');
+        } else { setCloud('☁ 저장 요청됨(확인 불가)', ''); }
+      }catch(e){ setCloud('☁ 저장 요청됨', ''); }
+    }, 1500);
+  }catch(e){ setCloud('☁ 저장 실패', 'err'); alert('저장 실패: '+e.message); }
+}
+
+/* ===================== 시작 ===================== */
+render();
+loadFromCloud();
+</script>
+</body>
+</html>
