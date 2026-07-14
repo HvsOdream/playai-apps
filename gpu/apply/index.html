@@ -246,6 +246,19 @@ function monthsBetween(s, e){
   return (b.getFullYear()-a.getFullYear())*12 + (b.getMonth()-a.getMonth()) - (b.getDate()<a.getDate()?1:0);
 }
 function showMsg(text, cls){ const m=$('msg'); m.textContent=text; m.className='msg '+cls; }
+function jsonp(params, cb){
+  if(!CLOUD_URL){ cb(null); return; }
+  const fn='__jcb'+Math.random().toString(36).slice(2);
+  const s=document.createElement('script');
+  let done=false;
+  const cleanup=()=>{ try{ delete window[fn]; }catch(e){} if(s.parentNode) s.parentNode.removeChild(s); };
+  window[fn]=(d)=>{ if(done) return; done=true; cb(d); cleanup(); };
+  s.onerror=()=>{ if(done) return; done=true; cb(null); cleanup(); };
+  const qs=Object.keys(params).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(params[k])).join('&');
+  s.src=CLOUD_URL+'?'+qs+'&callback='+fn;
+  document.body.appendChild(s);
+  setTimeout(()=>{ if(!done){ done=true; cb(null); cleanup(); } }, 15000);
+}
 function quickSel(kind){
   document.querySelectorAll('.slotchk').forEach(c=>{
     if(kind==='clear') c.checked=false;
@@ -310,14 +323,10 @@ $('form').addEventListener('submit', async (ev)=>{
 
   if(CLOUD_URL){
     showMsg('제출 중…','ok');
-    try{
-      await fetch(CLOUD_URL, {
-        method:'POST', mode:'no-cors',
-        headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify({ action:'apply', source:'apply-form', data: toApplication(d) })
-      });
-      finishDone(d);
-    }catch(e){ showMsg('제출 실패: '+e.message,'err'); $('submitBtn').disabled=false; }
+    jsonp({action:'apply', payload: JSON.stringify(toApplication(d))}, (j)=>{
+      if(j && j.status==='ok'){ finishDone(d); }
+      else { showMsg('제출 실패 — 잠시 후 다시 시도해 주세요.','err'); $('submitBtn').disabled=false; }
+    });
   } else {
     // 백엔드 미연동 → 이메일 제출로 대체
     const subject = encodeURIComponent(`[GPU 서버 사용 신청] ${d.who}`);

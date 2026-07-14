@@ -486,7 +486,7 @@ function exitAdmin(){ adminMode=false; render(); }
 function setCloud(msg, cls){ const el=document.getElementById('cloudStatus'); el.textContent=msg; el.className='cloud-status '+(cls||''); }
 
 // Apps Script는 교차도메인 GET fetch가 CORS로 막히므로 JSONP(script 태그)로 읽는다
-function jsonpRead(action, cb){
+function jsonp(params, cb){
   if(!CLOUD_URL){ cb(null); return; }
   const fn='__jcb'+Math.random().toString(36).slice(2);
   const s=document.createElement('script');
@@ -494,7 +494,8 @@ function jsonpRead(action, cb){
   const cleanup=()=>{ try{ delete window[fn]; }catch(e){} if(s.parentNode) s.parentNode.removeChild(s); };
   window[fn]=(data)=>{ if(done) return; done=true; cb(data); cleanup(); };
   s.onerror=()=>{ if(done) return; done=true; cb(null); cleanup(); };
-  s.src=CLOUD_URL+(CLOUD_URL.indexOf('?')>=0?'&':'?')+'action='+encodeURIComponent(action)+'&callback='+fn;
+  const qs=Object.keys(params).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(params[k])).join('&');
+  s.src=CLOUD_URL+'?'+qs+'&callback='+fn;
   document.body.appendChild(s);
   setTimeout(()=>{ if(!done){ done=true; cb(null); cleanup(); } }, 12000);
 }
@@ -502,7 +503,7 @@ function jsonpRead(action, cb){
 function loadFromCloud(){
   if(!CLOUD_URL){ setCloud('로컬 데이터(미연동)', ''); return; }
   setCloud('☁ 불러오는 중…', '');
-  jsonpRead('read', (j)=>{
+  jsonp({action:'read'}, (j)=>{
     if(j && j.status==='ok' && j.data && j.data.applications){
       STATE = j.data; render();
       setCloud('☁ 불러옴 · ' + (j.data._synced ? new Date(j.data._synced).toLocaleString('ko-KR'):'—'), 'ok');
@@ -514,24 +515,18 @@ function loadFromCloud(){
   });
 }
 
-async function saveToCloud(){
+function saveToCloud(){
   if(!CLOUD_URL){ alert('CLOUD_URL이 설정되지 않아 로컬에서만 편집됩니다.\nApps Script 배포 후 URL을 넣어주세요.'); return; }
   setCloud('☁ 저장 중…', '');
-  try{
-    await fetch(CLOUD_URL, {
-      method:'POST', mode:'no-cors',
-      headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({ action:'save', pin:ADMIN_PIN, source:'web-admin', data:STATE })
-    });
-    // no-cors 는 응답을 못 읽으므로 1.5초 뒤 JSONP 재조회로 검증
-    setTimeout(()=>{
-      jsonpRead('read', (j)=>{
-        if(j && j.status==='ok' && j.data && j.data._synced){
-          setCloud('☁ 저장됨 · ' + new Date(j.data._synced).toLocaleString('ko-KR'), 'ok');
-        } else { setCloud('☁ 저장 요청됨', ''); }
-      });
-    }, 1500);
-  }catch(e){ setCloud('☁ 저장 실패', 'err'); alert('저장 실패: '+e.message); }
+  jsonp({action:'save', pin:ADMIN_PIN, payload:JSON.stringify(STATE)}, (j)=>{
+    if(j && j.status==='ok'){
+      setCloud('☁ 저장됨 · ' + (j.synced?new Date(j.synced).toLocaleString('ko-KR'):''), 'ok');
+    } else if(j && j.message==='unauthorized'){
+      setCloud('☁ 저장 실패(PIN 불일치)', 'err');
+    } else {
+      setCloud('☁ 저장 실패', 'err');
+    }
+  });
 }
 
 /* ===================== 시작 ===================== */
