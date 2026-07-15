@@ -798,7 +798,7 @@ $("#home").onclick=()=>{$("#results").classList.add("hidden");$("#landing").clas
 $("#quitBtn").onclick=()=>{if(state.tick)clearInterval(state.tick);$("#quiz").classList.add("hidden");$("#landing").classList.remove("hidden");window.scrollTo({top:0});};
 
 /* ==================== v2: 개인화 · 서버 연동 ==================== */
-const CONFIG = { SYNC_URL: "" }; /* ← Apps Script 웹앱 URL 붙여넣기 (비우면 로컬 저장만) */
+const CONFIG = { SYNC_URL: "https://script.google.com/macros/s/AKfycbzmQ6xG9QSw_NPq4zdKXuvNPa6TjaB0qJG45Y-lICrK-gIt8CzPICN3cZpkk2xkX2GO/exec" }; /* ← Apps Script 웹앱 URL 붙여넣기 (비우면 로컬 저장만) */
 
 let USER = null; /* {sid,name,team} */
 
