@@ -141,6 +141,14 @@
   .lb-row .lb-name small{color:var(--faint);font-size:11px;margin-left:4px}
   .lb-row .lb-pct{font-family:var(--mono);color:var(--accent)}
   .lb-row.me{background:var(--accent-dim)}
+  .badge.num{background:var(--accent-dim);color:var(--text)}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:640px){.grid3{grid-template-columns:1fr}}
+  .revnav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}
+  .revnav .hint{flex:1;text-align:center;margin:0}
+  .opt[disabled],.match-item,.order-item{cursor:default}
+  .stat.exam .statn{color:var(--amber)}
+  .stat .statl small{font-size:10.5px}
 </style>
 
 <div class="wrap">
@@ -158,16 +166,9 @@
     <div class="panel login-card">
       <label class="fld"><span>학번</span><input id="inSid" inputmode="numeric" placeholder="예: 20250001"></label>
       <label class="fld"><span>이름</span><input id="inName" placeholder="예: 홍길동"></label>
-      <label class="fld"><span>조 (선택)</span>
-        <select id="inTeam">
-          <option value="">미지정</option>
-          <option>A조</option><option>B조</option><option>C조</option>
-          <option>D조</option><option>E조</option><option>F조</option>
-        </select>
-      </label>
       <div class="row"><button class="btn" id="loginBtn">시작하기</button></div>
       <div class="hint" id="loginMsg" style="color:var(--wrong)"></div>
-      <div class="hint">※ 학번·이름·조만 저장하며 민감정보는 저장하지 않습니다.</div>
+      <div class="hint">※ 학번·이름만 저장하며 민감정보는 저장하지 않습니다.</div>
     </div>
   </div>
 
@@ -195,16 +196,21 @@
     <h1>UCA 통합 퀴즈</h1>
     <div class="sub">16개 공식 도메인 · 179문항 풀 · 4종 형식(객관식·핫스팟·드래그앤드롭·매칭) · 난이도 필터. 부트캠프 문제풀이 훈련용.</div>
 
-    <div class="grid2">
+    <div class="grid3">
       <button class="mode-card" data-mode="practice">
         <div class="mc-tag">MODE 01</div>
         <h3>도메인별 연습</h3>
-        <p>도메인을 골라 풀고, 문항마다 즉시 정답·해설. 약점 학습·교정용.</p>
+        <p>도메인·난이도를 골라 풀고, 문항마다 즉시 정답·해설. 이전 문제 되돌아보기 가능.</p>
+      </button>
+      <button class="mode-card" data-mode="mock">
+        <div class="mc-tag">MODE 02</div>
+        <h3>연습 모의고사</h3>
+        <p>타이머 켜고 한 번에 채점. <b>연습 점수</b>로 기록.</p>
       </button>
       <button class="mode-card" data-mode="exam">
-        <div class="mc-tag">MODE 02</div>
-        <h3>실전 모의고사</h3>
-        <p>타이머 켜고 한 번에 채점. 형식 조작 속도·지구력 훈련.</p>
+        <div class="mc-tag">MODE 03</div>
+        <h3>시험</h3>
+        <p>타이머 채점. <b>시험 점수</b>로 별도 기록·리더보드 반영.</p>
       </button>
     </div>
 
@@ -225,13 +231,13 @@
     </div>
 
     <div id="examOpts" class="hidden">
-      <div class="section-label">회차 길이</div>
+      <div class="section-label" id="examOptsLabel">회차 길이</div>
       <div class="chips">
         <button class="chip" data-len="50" aria-pressed="true">50문항 · 1회분</button>
         <button class="chip" data-len="179" aria-pressed="false">179문항 · 전체 풀</button>
       </div>
       <div class="row">
-        <button class="btn" id="startExam">모의고사 시작</button>
+        <button class="btn" id="startExam">시작</button>
       </div>
     </div>
   </div>
@@ -247,6 +253,11 @@
     <div class="navrow">
       <button class="btn ghost mini" id="quitBtn">그만두기</button>
       <button class="btn" id="nextBtn" disabled>확인</button>
+    </div>
+    <div class="revnav hidden" id="revNav">
+      <button class="btn ghost mini" id="revPrev">◀ 이전</button>
+      <span class="hint" id="revLabel"></span>
+      <button class="btn ghost mini" id="revNext">다음 ▶</button>
     </div>
   </div>
 
@@ -553,11 +564,13 @@ Object.keys(DOM).forEach(code=>{
   b.onclick=()=>b.setAttribute("aria-pressed",b.getAttribute("aria-pressed")==="true"?"false":"true");
   domChips.appendChild(b);
 });
+let examMode="exam";
 document.querySelectorAll(".mode-card").forEach(c=>{
   c.onclick=()=>{
     const m=c.dataset.mode;
     $("#practiceOpts").classList.toggle("hidden",m!=="practice");
-    $("#examOpts").classList.toggle("hidden",m!=="exam");
+    $("#examOpts").classList.toggle("hidden",m==="practice");
+    if(m!=="practice"){ examMode=m; $("#examOptsLabel").textContent=(m==="exam"?"시험":"모의고사")+" · 회차 길이"; $("#startExam").textContent=(m==="exam"?"시험 시작":"모의고사 시작"); }
     document.querySelectorAll(".mode-card").forEach(x=>x.style.borderColor="");
     c.style.borderColor="var(--accent)";
   };
@@ -588,15 +601,15 @@ function blueprintSample(n){
 }
 $("#startExam").onclick=()=>{
   const pool=blueprintSample(Math.min(examLen,Q.length));
-  startQuiz(pool,"exam");
+  startQuiz(pool,examMode);
 };
 
 /* ---------- quiz flow ---------- */
 function startQuiz(list,mode){
-  state={list,mode,idx:0,answers:new Array(list.length).fill(null),correct:new Array(list.length).fill(false),
+  state={list,mode,idx:0,viewIdx:0,answers:new Array(list.length).fill(null),correct:new Array(list.length).fill(false),
     committed:false,start:Date.now(),tick:null};
   $("#landing").classList.add("hidden");$("#dashboard").classList.add("hidden");$("#login").classList.add("hidden");$("#results").classList.add("hidden");$("#quiz").classList.remove("hidden");
-  if(mode==="exam"){state.tick=setInterval(updTimer,1000);updTimer();}else{$("#timer").textContent="";}
+  if(mode!=="practice"){state.tick=setInterval(updTimer,1000);updTimer();}else{$("#timer").textContent="";}
   renderQ();
 }
 function updTimer(){const s=((Date.now()-state.start)/1000)|0;const m=(s/60|0).toString().padStart(2,"0");
@@ -604,11 +617,11 @@ function updTimer(){const s=((Date.now()-state.start)/1000)|0;const m=(s/60|0).t
 
 function renderQ(){
   const q=state.list[state.idx];
-  state.committed=false;state.pick=null;
+  state.committed=false;state.pick=null;state.viewIdx=state.idx;
   $("#qcount").textContent=(state.idx+1)+" / "+state.list.length;
   $("#pfill").style.width=((state.idx)/state.list.length*100)+"%";
   const p=$("#qpanel");
-  let html=`<div class="qmeta"><span class="badge fmt">${FMTLABEL[q.f]}</span><span class="badge dom">${q.dname}</span></div>`;
+  let html=`<div class="qmeta"><span class="badge num">문항 ${state.idx+1}</span><span class="badge fmt">${FMTLABEL[q.f]}</span><span class="badge dom">${q.dname}</span></div>`;
   html+=`<div class="qtext">${q.q}</div>`;
   if(q.f==="mc"){
     state.mcOrder=shuffle(q.opts.map((t,i)=>({t,i})));
@@ -627,8 +640,9 @@ function renderQ(){
   html+=`<div id="fb"></div>`;
   p.innerHTML=html;
   wire(q);
-  $("#nextBtn").textContent=(state.idx===state.list.length-1)? (state.mode==="exam"?"제출":"결과 보기") : "확인";
-  $("#nextBtn").disabled=true;
+  $("#nextBtn").textContent=(state.idx===state.list.length-1)? (state.mode!=="practice"?"제출":"결과 보기") : "확인";
+  $("#nextBtn").disabled=true;$("#nextBtn").style.display="";
+  attachSwipe();updRevNav();
 }
 
 function wire(q){
@@ -715,7 +729,7 @@ $("#nextBtn").onclick=()=>{
     const ok=grade(q);
     state.correct[state.idx]=ok;state.answers[state.idx]=captureAnswer(q);
     if(state.mode==="practice"){
-      state.committed=true;showFeedback(q,ok);
+      state.committed=true;showFeedback(q,ok);updRevNav();
       $("#nextBtn").textContent=(state.idx===state.list.length-1)?"결과 보기":"다음";
       return;
     }
@@ -760,6 +774,61 @@ function correctText(q){
   return "";
 }
 
+/* ---------- 이전 문제 되돌아보기 (연습 모드) ---------- */
+function updRevNav(){
+  const rn=$("#revNav"); if(!rn) return;
+  const canReview = state && state.mode==="practice" && state.idx>=1;
+  rn.classList.toggle("hidden", !canReview);
+  if(!canReview) return;
+  $("#revPrev").disabled = state.viewIdx<=0;
+  $("#revNext").disabled = state.viewIdx>=state.idx;
+  $("#revLabel").textContent = "문항 "+(state.viewIdx+1)+" / "+state.list.length+(state.viewIdx<state.idx?" · 복습 중":"");
+}
+function goView(i){
+  if(!state) return;
+  i=Math.max(0, Math.min(i, state.idx));
+  state.viewIdx=i;
+  if(i===state.idx){
+    if(state.committed){ renderReview(i); $("#nextBtn").style.display=""; }
+    else { renderQ(); }
+  } else { renderReview(i); $("#nextBtn").style.display="none"; }
+  updRevNav();
+}
+$("#revPrev").onclick=()=>goView((state?state.viewIdx:0)-1);
+$("#revNext").onclick=()=>goView((state?state.viewIdx:0)+1);
+let _swXY=null;
+function attachSwipe(){
+  const p=$("#qpanel");
+  p.ontouchstart=e=>{_swXY=[e.touches[0].clientX,e.touches[0].clientY];};
+  p.ontouchend=e=>{ if(!_swXY)return; const t=e.changedTouches[0]; const dx=t.clientX-_swXY[0], dy=t.clientY-_swXY[1]; _swXY=null;
+    if(Math.abs(dx)>60 && Math.abs(dx)>Math.abs(dy)){ goView(state.viewIdx+(dx>0?-1:1)); } };
+  p.onmousedown=e=>{_swXY=[e.clientX,e.clientY];};
+  p.onmouseup=e=>{ if(!_swXY)return; const dx=e.clientX-_swXY[0], dy=e.clientY-_swXY[1]; _swXY=null;
+    if(Math.abs(dx)>80 && Math.abs(dx)>Math.abs(dy)){ goView(state.viewIdx+(dx>0?-1:1)); } };
+}
+function renderReview(i){
+  const q=state.list[i], ans=state.answers[i], ok=state.correct[i], p=$("#qpanel");
+  let html=`<div class="qmeta"><span class="badge num">문항 ${i+1}</span><span class="badge fmt">${FMTLABEL[q.f]}</span><span class="badge dom">${q.dname}</span></div>`;
+  html+=`<div class="qtext">${q.q}</div>`;
+  if(q.f==="mc"){
+    html+=q.opts.map((t,idx)=>{let cls="opt";if(idx===q.ans)cls+=" correct";else if(idx===ans&&ans!==q.ans)cls+=" wrong";return `<button class="${cls}" disabled>${t}</button>`;}).join("");
+  } else if(q.f==="order"){
+    html+=`<div class="hint">내가 놓은 순번 (정답=원래 위치)</div><div class="order-src">`;
+    html+=q.items.map((t,idx)=>{const myPos=ans?ans.indexOf(idx):-1;const good=(myPos===idx);
+      return `<div class="order-item ${good?'correct':'wrong'}"><span class="num">${myPos>=0?myPos+1:'-'}</span><span>${t}</span></div>`;}).join("")+`</div>`;
+  } else if(q.f==="match"){
+    html+=`<div class="match-grid"><div class="match-col">`;
+    html+=q.left.map((t,li)=>{const ch=ans?ans[li]:undefined;const good=(ch===li);const rt=(ch!==undefined&&ch!==null)?q.right[ch]:'—';
+      return `<div class="match-item ${good?'correct':'wrong'}">${t} → ${rt}</div>`;}).join("")+`</div><div class="match-col">`;
+    html+=q.left.map((t,li)=>`<div class="match-item">${t} ↔ ${q.right[li]}</div>`).join("")+`</div></div>`;
+  } else if(q.f==="hotspot"){
+    html+=`<div class="hs-wrap">${q.tmpl==="editor"?svgEditor():svgInspector()}</div>`;
+  }
+  html+=`<div id="fb"><div class="fb ${ok?'ok':'no'}"><b>${ok?'정답':'오답'}</b>${ok?'':' · 정답: '+correctText(q)}<span class="exp">${q.e}</span></div></div>`;
+  p.innerHTML=html;
+  if(q.f==="hotspot"){document.querySelectorAll("#qpanel svg .hz").forEach(z=>{if(z.dataset.r===q.ans)z.classList.add("correct");else if(z.dataset.r===ans)z.classList.add("wrong");});}
+}
+
 /* ---------- finish / results ---------- */
 function finish(){if(state.tick)clearInterval(state.tick);renderResults();submitSession();}
 function renderResults(){
@@ -785,9 +854,9 @@ function renderResults(){
   const rv=$("#review");rv.innerHTML="";
   const wrong=state.list.map((q,i)=>({q,i})).filter(x=>!state.correct[x.i]);
   if(!wrong.length){rv.innerHTML=`<div class="panel" style="color:var(--correct)">틀린 문항이 없습니다. 완벽합니다.</div>`;}
-  wrong.forEach(({q})=>{
+  wrong.forEach(({q,i})=>{
     const d=document.createElement("div");d.className="review-item";
-    d.innerHTML=`<div class="rq"><span class="badge fmt" style="margin-right:6px">${FMTLABEL[q.f]}</span>${q.q}</div>
+    d.innerHTML=`<div class="rq"><span class="badge num" style="margin-right:6px">${i+1}번</span><span class="badge fmt" style="margin-right:6px">${FMTLABEL[q.f]}</span>${q.q}</div>
       <div class="ra"><span class="g">정답: ${correctText(q)}</span><br><span style="color:var(--faint)">${q.e}</span></div>`;
     rv.appendChild(d);
   });
@@ -802,7 +871,7 @@ const CONFIG = { SYNC_URL: "https://script.google.com/macros/s/AKfycbzmQ6xG9QSw_
 
 let USER = null; /* {sid,name,team} */
 
-function blankStu(name,team){return {sid:"",name:name||"",team:team||"",sessions:[],domAgg:{},totalSessions:0,totalQ:0,totalC:0,lastSeen:""};}
+function blankStu(name){return {sid:"",name:name||"",sessions:[],domAgg:{},weakQ:[],pracSessions:0,pracQ:0,pracC:0,examSessions:0,examQ:0,examC:0,totalSessions:0,totalQ:0,totalC:0,lastSeen:""};}
 
 /* ---- 로컬 미러 (오프라인/미배포 대비) ---- */
 function lKey(sid){return "uca_stu_"+sid;}
@@ -810,14 +879,16 @@ function localGet(sid){try{return JSON.parse(localStorage.getItem(lKey(sid)))||n
 function localSave(stu){localStorage.setItem(lKey(stu.sid||USER.sid),JSON.stringify(stu));}
 function mergeLocal(payload){
   const sid=payload.sid;
-  let s=localGet(sid)||blankStu(payload.name,payload.team);
-  s.sid=sid; if(payload.name)s.name=payload.name; if(payload.team!==undefined)s.team=payload.team;
+  let s=localGet(sid)||blankStu(payload.name);
+  s.sid=sid; if(payload.name)s.name=payload.name;
   const ss=payload.session||{};
   s.sessions=s.sessions||[];
   s.sessions.push({t:new Date().toISOString(),mode:ss.mode,total:ss.total,got:ss.got,pct:ss.pct});
   if(s.sessions.length>30)s.sessions=s.sessions.slice(-30);
   s.domAgg=s.domAgg||{};
   Object.keys(ss.byDom||{}).forEach(function(d){s.domAgg[d]=s.domAgg[d]||{n:0,c:0};s.domAgg[d].n+=ss.byDom[d].n;s.domAgg[d].c+=ss.byDom[d].c;});
+  if(ss.mode==="exam"){s.examSessions=(s.examSessions||0)+1;s.examQ=(s.examQ||0)+(ss.total||0);s.examC=(s.examC||0)+(ss.got||0);}
+  else{s.pracSessions=(s.pracSessions||0)+1;s.pracQ=(s.pracQ||0)+(ss.total||0);s.pracC=(s.pracC||0)+(ss.got||0);}
   s.totalSessions=(s.totalSessions||0)+1; s.totalQ=(s.totalQ||0)+(ss.total||0); s.totalC=(s.totalC||0)+(ss.got||0);
   s.weakQ=s.weakQ||[];
   (ss.wq||[]).forEach(function(q){ if(s.weakQ.indexOf(q)<0)s.weakQ.push(q); });
@@ -830,15 +901,14 @@ function mergeLocal(payload){
 }
 function localBoard(){
   const roster=JSON.parse(localStorage.getItem("uca_roster")||"{}");
-  const players=[],teams={};
+  const players=[];
   Object.keys(roster).forEach(function(sid){const s=localGet(sid);if(!s)return;
-    const pct=s.totalQ?Math.round(s.totalC/s.totalQ*100):0;
-    players.push({sid:sid,name:s.name||sid,team:s.team||"-",totalQ:s.totalQ||0,totalC:s.totalC||0,pct:pct,sessions:s.totalSessions||0});
-    const tk=s.team||"-"; teams[tk]=teams[tk]||{team:tk,totalQ:0,totalC:0,members:0};
-    teams[tk].totalQ+=s.totalQ||0; teams[tk].totalC+=s.totalC||0; teams[tk].members++;});
-  players.sort(function(a,b){return b.pct-a.pct||b.totalC-a.totalC;});
-  const teamArr=Object.keys(teams).map(function(k){const t=teams[k];t.pct=t.totalQ?Math.round(t.totalC/t.totalQ*100):0;return t;}).sort(function(a,b){return b.pct-a.pct||b.totalC-a.totalC;});
-  return {players:players,teams:teamArr};
+    players.push({sid:sid,name:s.name||sid,
+      pracQ:s.pracQ||0,pracC:s.pracC||0,pracPct:s.pracQ?Math.round(s.pracC/s.pracQ*100):0,
+      examQ:s.examQ||0,examC:s.examC||0,examPct:s.examQ?Math.round(s.examC/s.examQ*100):0,
+      examSessions:s.examSessions||0,sessions:s.totalSessions||0});});
+  players.sort(function(a,b){if((b.examQ>0)!==(a.examQ>0))return (b.examQ>0?1:0)-(a.examQ>0?1:0);return b.examPct-a.examPct||b.examC-a.examC||b.pracPct-a.pracPct;});
+  return {players:players};
 }
 
 /* ---- 서버 API (실패 시 로컬 폴백) ---- */
@@ -871,13 +941,34 @@ async function apiBoard(){
   const j=await jsonp({action:"board"});
   return (j&&j.board)||localBoard();
 }
+async function apiCheck(sid,name){
+  if(!CONFIG.SYNC_URL){
+    const roster=JSON.parse(localStorage.getItem("uca_roster")||"{}"); const me=localGet(sid); let nameOther=false;
+    Object.keys(roster).forEach(function(k){ if(k!==sid){var s=localGet(k); if(s&&(s.name||"").trim()===name&&name)nameOther=true; } });
+    return {status:"ok",sidExists:!!me,sidName:me?(me.name||""):"",nameOtherSid:nameOther};
+  }
+  const j=await jsonp({action:"check",sid:sid,name:name});
+  return j||{status:"err"};
+}
 
 /* ---- 로그인 ---- */
-function doLogin(){
-  const sid=$("#inSid").value.trim(), name=$("#inName").value.trim(), team=$("#inTeam").value;
-  if(!sid||!name){$("#loginMsg").textContent="학번과 이름을 입력하세요.";return;}
-  USER={sid:sid,name:name,team:team};
-  localStorage.setItem("uca_user",JSON.stringify(USER));
+async function doLogin(){
+  const sid=$("#inSid").value.trim(), name=$("#inName").value.trim();
+  const msg=$("#loginMsg"), btn=$("#loginBtn");
+  if(!sid||!name){msg.style.color="var(--wrong)";msg.textContent="학번과 이름을 입력하세요.";return;}
+  msg.style.color="var(--muted)"; msg.textContent="확인 중…"; btn.disabled=true;
+  try{
+    const c=await apiCheck(sid,name);
+    if(c && c.status==="ok"){
+      if(c.sidExists){
+        if((c.sidName||"").trim()!==name){ msg.style.color="var(--wrong)"; msg.textContent="이 학번은 다른 이름('"+(c.sidName||"?")+"')으로 이미 사용 중입니다."; btn.disabled=false; return; }
+      } else if(c.nameOtherSid){
+        msg.style.color="var(--wrong)"; msg.textContent="이 이름은 다른 학번으로 이미 사용 중입니다. 학번을 확인하세요."; btn.disabled=false; return;
+      }
+    }
+  }catch(e){}
+  msg.textContent=""; USER={sid:sid,name:name};
+  localStorage.setItem("uca_user",JSON.stringify(USER)); btn.disabled=false;
   enterDashboard();
 }
 $("#loginBtn").onclick=doLogin;
@@ -891,7 +982,7 @@ async function enterDashboard(){
   $("#results").classList.add("hidden");
   $("#landing").classList.add("hidden");
   $("#userbar").classList.remove("hidden");
-  $("#ubName").textContent=USER.name+" ("+USER.sid+")"+(USER.team?" · "+USER.team:"");
+  $("#ubName").textContent=USER.name+" ("+USER.sid+")";
   $("#dashboard").classList.remove("hidden");
   const stu=await apiMe(USER.sid);
   if(stu){stu.sid=USER.sid; localSave(stu);}
@@ -905,11 +996,12 @@ function renderDashboard(stu){
     st.innerHTML='<div class="muted-box" style="grid-column:1/-1">아직 응시 기록이 없어요. 첫 세트를 풀어보세요.</div>';
     weak.innerHTML=""; $("#weakBtn").classList.add("hidden"); $("#reviewBtn").classList.add("hidden"); window._weakTargets=[]; window._weakQ=[]; return;
   }
-  const pct=stu.totalQ?Math.round(stu.totalC/stu.totalQ*100):0;
+  var pracQ=stu.pracQ||0,pracC=stu.pracC||0,examQ=stu.examQ||0,examC=stu.examC||0;
+  var pracPct=pracQ?Math.round(pracC/pracQ*100):0, examPct=examQ?Math.round(examC/examQ*100):0;
   st.innerHTML=
-    '<div class="stat"><div class="statn">'+stu.totalSessions+'</div><div class="statl">응시 세트</div></div>'+
-    '<div class="stat"><div class="statn">'+stu.totalC+'/'+stu.totalQ+'</div><div class="statl">누적 정답</div></div>'+
-    '<div class="stat"><div class="statn">'+pct+'%</div><div class="statl">누적 정답률</div></div>';
+    '<div class="stat"><div class="statn">'+(stu.totalSessions||0)+'</div><div class="statl">응시 세트</div></div>'+
+    '<div class="stat"><div class="statn">'+pracPct+'%</div><div class="statl">연습 정답률<br><small style="color:var(--faint)">'+pracC+'/'+pracQ+'</small></div></div>'+
+    '<div class="stat exam"><div class="statn">'+(examQ?examPct+'%':'—')+'</div><div class="statl">시험 정답률<br><small style="color:var(--faint)">'+(examQ?examC+'/'+examQ:'미응시')+'</small></div></div>';
   const rows=Object.keys(stu.domAgg||{}).map(function(d){const o=stu.domAgg[d];return {d:d,n:o.n,c:o.c,r:o.n?o.c/o.n:0};})
     .filter(function(x){return x.n>0;}).sort(function(a,b){return a.r-b.r;});
   weak.innerHTML=rows.map(function(x){const r=Math.round(x.r*100);
@@ -941,11 +1033,10 @@ $("#reviewBtn").onclick=function(){
 async function renderBoard(){
   const b=await apiBoard(); const el=$("#boardBody");
   if(!b||!b.players||!b.players.length){el.innerHTML='<div class="muted-box">아직 리더보드 데이터가 없어요. 첫 세트를 풀면 등록됩니다.</div>';return;}
-  const teamRows=(b.teams||[]).filter(function(t){return t.team!=="-";}).map(function(t,i){
-    return '<div class="lb-row"><span class="lb-rank">'+(i+1)+'</span><span class="lb-name">'+t.team+' <small>('+t.members+'명)</small></span><span class="lb-pct">'+t.pct+'%</span></div>';}).join("");
-  const playerRows=b.players.slice(0,10).map(function(p,i){const me=(USER&&p.sid===USER.sid)?" me":"";
-    return '<div class="lb-row'+me+'"><span class="lb-rank">'+(i+1)+'</span><span class="lb-name">'+p.name+' <small>'+p.team+'</small></span><span class="lb-pct">'+p.pct+'%</span></div>';}).join("");
-  el.innerHTML=(teamRows?('<div class="lb-sec">조별 순위</div>'+teamRows):'')+'<div class="lb-sec">개인 TOP 10</div>'+playerRows;
+  const examers=b.players.filter(function(p){return (p.examQ||0)>0;}).slice(0,10);
+  const rows=examers.map(function(p,i){const me=(USER&&p.sid===USER.sid)?" me":"";
+    return '<div class="lb-row'+me+'"><span class="lb-rank">'+(i+1)+'</span><span class="lb-name">'+p.name+'</span><span class="lb-pct">'+p.examPct+'%</span></div>';}).join("");
+  el.innerHTML='<div class="lb-sec">시험 성적 TOP 10</div>'+(rows||'<div class="muted-box">아직 시험 응시자가 없습니다.</div>');
 }
 
 /* ---- 세션 제출 (finish에서 호출) ---- */
@@ -956,7 +1047,7 @@ function submitSession(){
   const byDom={}, wq=[], rq=[];
   state.list.forEach(function(q,i){byDom[q.d]=byDom[q.d]||{n:0,c:0};byDom[q.d].n++;
     if(state.correct[i]){byDom[q.d].c++; rq.push(q.qid);} else { wq.push(q.qid); }});
-  apiSubmit({sid:USER.sid,name:USER.name,team:USER.team,session:{mode:state.mode,total:total,got:got,pct:pct,byDom:byDom,wq:wq,rq:rq}});
+  apiSubmit({sid:USER.sid,name:USER.name,session:{mode:state.mode,total:total,got:got,pct:pct,byDom:byDom,wq:wq,rq:rq}});
 }
 
 /* ---- 결과 화면의 홈/그만두기 → 대시보드로 ---- */
