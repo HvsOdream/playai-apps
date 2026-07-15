@@ -18,7 +18,7 @@
 
 const FOLDER_NAME = 'UCA퀴즈-DB';
 const FILE_NAME   = 'uca_progress.json';
-const ADMIN_KEY   = 'uca-admin';   /* 교수 대시보드 비밀번호 — 배포 전 변경 */
+const ADMIN_KEY   = 'SET-IN-DEPLOYMENT'; /* ⚠공개 레포: 실제 비밀번호는 배포된 스크립트에만 설정(현재 적용됨). 이 파일엔 노출 금지 */
 
 const DOMAINS = ["EDITOR","PROG","PHYS","ANIM","ASSET","UI","LIGHT","AUDIO",
   "MAT","SVC","GDES","PMGT","GART","NAV","EMP","IND"];
