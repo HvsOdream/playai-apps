@@ -1,0 +1,968 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UCA 통합 퀴즈 · Unity Certified Associate 대비</title>
+<style>
+  :root{
+    --bg:#0e1017; --surface:#171a24; --surface2:#1e2230; --surface3:#252a3a;
+    --line:#2a2f40; --text:#e6e8ef; --muted:#8b90a3; --faint:#5a6072;
+    --accent:#3dd7d0; --accent-dim:#1c5f5c; --amber:#f2b544;
+    --correct:#4ade80; --wrong:#f87171;
+    --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic","Segoe UI",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.55;
+    -webkit-font-smoothing:antialiased;padding:0}
+  .wrap{max-width:820px;margin:0 auto;padding:28px 18px 80px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent)}
+  h1{font-family:var(--mono);font-weight:600;font-size:clamp(24px,5vw,34px);margin:.3em 0 .1em;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:26px}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:560px){.grid2{grid-template-columns:1fr}}
+  .mode-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;cursor:pointer;
+    transition:border-color .15s,transform .15s;text-align:left}
+  .mode-card:hover{border-color:var(--accent)}
+  .mode-card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .mode-card .mc-tag{font-family:var(--mono);font-size:11px;color:var(--amber);letter-spacing:.12em}
+  .mode-card h3{margin:.4em 0 .2em;font-size:18px}
+  .mode-card p{margin:0;color:var(--muted);font-size:13px}
+  .section-label{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin:26px 0 10px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{font-family:var(--mono);font-size:12px;padding:6px 11px;border:1px solid var(--line);border-radius:999px;
+    background:var(--surface2);color:var(--muted);cursor:pointer;user-select:none;transition:all .12s}
+  .chip[aria-pressed="true"]{background:var(--accent-dim);border-color:var(--accent);color:var(--text)}
+  .chip small{color:var(--faint);margin-left:5px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:18px}
+  button.btn{font-family:var(--sans);font-size:14px;font-weight:600;padding:11px 18px;border-radius:10px;border:1px solid var(--accent);
+    background:var(--accent);color:#06201f;cursor:pointer;transition:opacity .15s}
+  button.btn:hover{opacity:.9}
+  button.btn.ghost{background:transparent;color:var(--accent)}
+  button.btn.mini{padding:7px 12px;font-size:12.5px;font-weight:500;border-color:var(--line);color:var(--muted);background:var(--surface2)}
+  button.btn.mini:hover{border-color:var(--accent);color:var(--text)}
+  button.btn:disabled{opacity:.4;cursor:default}
+  /* progress bar */
+  .topbar{display:flex;align-items:center;gap:14px;margin-bottom:18px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .pbar{flex:1;height:6px;background:var(--surface2);border-radius:999px;overflow:hidden}
+  .pbar > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--amber));width:0;transition:width .3s}
+  .timer{font-family:var(--mono);color:var(--amber)}
+  /* question */
+  .qmeta{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+  .badge{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;padding:3px 8px;border-radius:6px;text-transform:uppercase}
+  .badge.fmt{background:var(--surface3);color:var(--accent)}
+  .badge.dom{background:var(--surface2);color:var(--muted)}
+  .qtext{font-size:17px;font-weight:600;margin:2px 0 18px;line-height:1.5}
+  .opt{display:block;width:100%;text-align:left;padding:13px 15px;border:1px solid var(--line);background:var(--surface2);
+    border-radius:10px;color:var(--text);cursor:pointer;margin-bottom:9px;font-size:14.5px;transition:border-color .12s,background .12s}
+  .opt:hover{border-color:var(--accent)}
+  .opt:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .opt.sel{border-color:var(--accent);background:var(--accent-dim)}
+  .opt.correct{border-color:var(--correct);background:rgba(74,222,128,.12)}
+  .opt.wrong{border-color:var(--wrong);background:rgba(248,113,113,.12)}
+  .opt .k{font-family:var(--mono);color:var(--faint);margin-right:9px}
+  /* order */
+  .order-src,.order-dst{display:flex;flex-direction:column;gap:8px}
+  .order-item{padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface2);cursor:pointer;
+    font-size:14.5px;display:flex;align-items:center;gap:10px;transition:all .12s}
+  .order-item:hover{border-color:var(--accent)}
+  .order-item .num{font-family:var(--mono);width:22px;height:22px;line-height:22px;text-align:center;border-radius:6px;
+    background:var(--accent);color:#06201f;font-size:12px;font-weight:700;flex:none}
+  .order-item.placed{opacity:.45}
+  .order-item.correct{border-color:var(--correct)}
+  .order-item.wrong{border-color:var(--wrong)}
+  .hint{font-family:var(--mono);font-size:11px;color:var(--faint);margin:2px 0 10px}
+  /* match */
+  .match-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .match-col{display:flex;flex-direction:column;gap:9px}
+  .match-item{padding:12px 13px;border:1px solid var(--line);border-radius:10px;background:var(--surface2);cursor:pointer;
+    font-size:14px;transition:all .12s;position:relative}
+  .match-item:hover{border-color:var(--accent)}
+  .match-item.sel{border-color:var(--accent);background:var(--accent-dim)}
+  .match-item.done{border-color:var(--accent-dim)}
+  .match-item .pairtag{font-family:var(--mono);font-size:10px;color:var(--amber);position:absolute;top:5px;right:8px}
+  .match-item.correct{border-color:var(--correct)}
+  .match-item.wrong{border-color:var(--wrong)}
+  /* hotspot */
+  .hs-wrap{background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:10px;overflow:auto}
+  svg .hz{fill:transparent;stroke:var(--line);stroke-width:1;cursor:pointer;transition:fill .12s,stroke .12s}
+  svg .hz:hover{fill:rgba(61,215,208,.10);stroke:var(--accent)}
+  svg .hz.sel{fill:rgba(61,215,208,.18);stroke:var(--accent)}
+  svg .hz.correct{fill:rgba(74,222,128,.18);stroke:var(--correct)}
+  svg .hz.wrong{fill:rgba(248,113,113,.18);stroke:var(--wrong)}
+  svg .zlabel{fill:var(--muted);font-family:var(--mono);font-size:9px;pointer-events:none}
+  svg .frame{fill:var(--surface);stroke:var(--line)}
+  /* feedback */
+  .fb{margin-top:16px;padding:13px 15px;border-radius:10px;font-size:14px;border:1px solid}
+  .fb.ok{border-color:var(--correct);background:rgba(74,222,128,.08)}
+  .fb.no{border-color:var(--wrong);background:rgba(248,113,113,.08)}
+  .fb b{font-family:var(--mono);font-size:12px;letter-spacing:.05em}
+  .fb .exp{color:var(--muted);margin-top:5px;display:block}
+  .navrow{display:flex;justify-content:space-between;gap:10px;margin-top:22px}
+  /* results */
+  .score-hero{text-align:center;padding:10px 0 6px}
+  .score-num{font-family:var(--mono);font-size:52px;font-weight:700;letter-spacing:-.02em}
+  .score-num small{font-size:20px;color:var(--muted)}
+  .verdict{font-family:var(--mono);font-size:13px;letter-spacing:.06em;margin-top:2px}
+  .dbreak{margin-top:22px;display:flex;flex-direction:column;gap:10px}
+  .dbrow{display:grid;grid-template-columns:130px 1fr 46px;align-items:center;gap:10px;font-size:12.5px}
+  .dbrow .dn{font-family:var(--mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dbar{height:8px;background:var(--surface2);border-radius:999px;overflow:hidden}
+  .dbar > i{display:block;height:100%;border-radius:999px}
+  .dbrow .dp{font-family:var(--mono);text-align:right;color:var(--muted)}
+  .review-item{border:1px solid var(--line);border-radius:10px;padding:13px 15px;margin-bottom:10px}
+  .review-item .rq{font-size:14px;font-weight:600;margin-bottom:5px}
+  .review-item .ra{font-size:13px;color:var(--muted)}
+  .review-item .ra .g{color:var(--correct)}
+  .review-item .ra .b{color:var(--wrong)}
+  .hidden{display:none!important}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+  /* ---- v2: login / dashboard / leaderboard ---- */
+  .userbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px;
+    padding:10px 14px;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+  .userbar .ub-name{font-family:var(--mono);font-size:13px;color:var(--text)}
+  #login{min-height:calc(100vh - 116px);display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}
+  #login .sub{max-width:460px}
+  .login-card{margin-top:14px;max-width:420px;width:100%;text-align:left}
+  .fld{display:flex;flex-direction:column;gap:5px;margin-bottom:13px}
+  .fld > span{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .fld input,.fld select{font-family:var(--sans);font-size:15px;padding:11px 13px;border-radius:10px;
+    border:1px solid var(--line);background:var(--surface2);color:var(--text)}
+  .fld input:focus,.fld select:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:6px}
+  .stat{background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center}
+  .stat .statn{font-family:var(--mono);font-size:24px;font-weight:700;color:var(--accent)}
+  .stat .statl{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .muted-box{color:var(--muted);font-size:14px;padding:6px 2px}
+  .lb-sec{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin:10px 0 8px}
+  .lb-row{display:grid;grid-template-columns:32px 1fr auto;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;font-size:13.5px}
+  .lb-row+.lb-row{margin-top:2px}
+  .lb-row .lb-rank{font-family:var(--mono);color:var(--faint);text-align:center}
+  .lb-row .lb-name small{color:var(--faint);font-size:11px;margin-left:4px}
+  .lb-row .lb-pct{font-family:var(--mono);color:var(--accent)}
+  .lb-row.me{background:var(--accent-dim)}
+</style>
+
+<div class="wrap">
+  <!-- ============ USER BAR ============ -->
+  <div id="userbar" class="userbar hidden">
+    <span class="ub-name" id="ubName"></span>
+    <button class="btn ghost mini" id="logout">로그아웃</button>
+  </div>
+
+  <!-- ============ LOGIN ============ -->
+  <div id="login">
+    <div class="eyebrow">Unity Certified Associate · Game Developer</div>
+    <h1>UCA 통합 퀴즈</h1>
+    <div class="sub">학번과 이름으로 시작하면, 응시 기록이 쌓여 약점 도메인을 자동으로 진단해줍니다.</div>
+    <div class="panel login-card">
+      <label class="fld"><span>학번</span><input id="inSid" inputmode="numeric" placeholder="예: 20250001"></label>
+      <label class="fld"><span>이름</span><input id="inName" placeholder="예: 홍길동"></label>
+      <label class="fld"><span>조 (선택)</span>
+        <select id="inTeam">
+          <option value="">미지정</option>
+          <option>A조</option><option>B조</option><option>C조</option>
+          <option>D조</option><option>E조</option><option>F조</option>
+        </select>
+      </label>
+      <div class="row"><button class="btn" id="loginBtn">시작하기</button></div>
+      <div class="hint" id="loginMsg" style="color:var(--wrong)"></div>
+      <div class="hint">※ 학번·이름·조만 저장하며 민감정보는 저장하지 않습니다.</div>
+    </div>
+  </div>
+
+  <!-- ============ DASHBOARD ============ -->
+  <div id="dashboard" class="hidden">
+    <div class="eyebrow">내 학습 현황</div>
+    <h1 style="font-size:clamp(20px,4vw,26px)">개인 대시보드</h1>
+    <div class="panel">
+      <div class="stats" id="dashStats"></div>
+      <div class="section-label">약점 도메인 (누적 정답률 낮은 순)</div>
+      <div class="dbreak" id="dashWeak"></div>
+      <div class="row">
+        <button class="btn" id="goPractice">문제 풀러 가기</button>
+        <button class="btn ghost mini hidden" id="weakBtn">약점 3개 집중 연습</button>
+        <button class="btn ghost mini hidden" id="reviewBtn">틀린 문제만 복습</button>
+      </div>
+    </div>
+    <div class="section-label">리더보드</div>
+    <div class="panel" id="boardBody"></div>
+  </div>
+
+  <!-- ============ LANDING ============ -->
+  <div id="landing" class="hidden">
+    <div class="eyebrow">Unity Certified Associate · Game Developer</div>
+    <h1>UCA 통합 퀴즈</h1>
+    <div class="sub">16개 공식 도메인 · 179문항 풀 · 4종 형식(객관식·핫스팟·드래그앤드롭·매칭) · 난이도 필터. 부트캠프 문제풀이 훈련용.</div>
+
+    <div class="grid2">
+      <button class="mode-card" data-mode="practice">
+        <div class="mc-tag">MODE 01</div>
+        <h3>도메인별 연습</h3>
+        <p>도메인을 골라 풀고, 문항마다 즉시 정답·해설. 약점 학습·교정용.</p>
+      </button>
+      <button class="mode-card" data-mode="exam">
+        <div class="mc-tag">MODE 02</div>
+        <h3>실전 모의고사</h3>
+        <p>타이머 켜고 한 번에 채점. 형식 조작 속도·지구력 훈련.</p>
+      </button>
+    </div>
+
+    <div id="practiceOpts" class="hidden">
+      <div class="section-label">도메인 선택 (복수 가능 · 미선택 시 전체)</div>
+      <div class="chips" id="domChips"></div>
+      <div class="section-label">난이도 (복수 가능 · 미선택 시 전체)</div>
+      <div class="chips" id="lvlChips">
+        <button class="chip" data-lvl="下" aria-pressed="false">下 · 기초</button>
+        <button class="chip" data-lvl="中" aria-pressed="false">中 · 표준</button>
+        <button class="chip" data-lvl="上" aria-pressed="false">上 · 응용</button>
+      </div>
+      <div class="row">
+        <button class="btn" id="startPractice">연습 시작</button>
+        <button class="btn ghost mini" id="allDom">전체 선택</button>
+        <button class="btn ghost mini" id="clearDom">선택 해제</button>
+      </div>
+    </div>
+
+    <div id="examOpts" class="hidden">
+      <div class="section-label">회차 길이</div>
+      <div class="chips">
+        <button class="chip" data-len="50" aria-pressed="true">50문항 · 1회분</button>
+        <button class="chip" data-len="179" aria-pressed="false">179문항 · 전체 풀</button>
+      </div>
+      <div class="row">
+        <button class="btn" id="startExam">모의고사 시작</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ QUIZ ============ -->
+  <div id="quiz" class="hidden">
+    <div class="topbar">
+      <span id="qcount">1 / 50</span>
+      <div class="pbar"><i id="pfill"></i></div>
+      <span class="timer" id="timer"></span>
+    </div>
+    <div class="panel" id="qpanel"></div>
+    <div class="navrow">
+      <button class="btn ghost mini" id="quitBtn">그만두기</button>
+      <button class="btn" id="nextBtn" disabled>확인</button>
+    </div>
+  </div>
+
+  <!-- ============ RESULTS ============ -->
+  <div id="results" class="hidden">
+    <div class="eyebrow">결과 리포트</div>
+    <div class="panel">
+      <div class="score-hero">
+        <div class="score-num" id="scoreNum">0<small>/0</small></div>
+        <div class="verdict" id="verdict"></div>
+      </div>
+      <div class="section-label">도메인별 정답률 (약점 진단)</div>
+      <div class="dbreak" id="dbreak"></div>
+    </div>
+    <div class="section-label">오답 리뷰</div>
+    <div id="review"></div>
+    <div class="row">
+      <button class="btn" id="retry">다시 풀기</button>
+      <button class="btn ghost mini" id="home">처음으로</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- domain names ---------- */
+const DOM = {
+  EDITOR:"Editor Interface", PROG:"Programming", PHYS:"Physics", ANIM:"Animation",
+  ASSET:"Asset Management", UI:"User Interface", LIGHT:"Lighting", AUDIO:"Audio",
+  MAT:"Materials & Effects", SVC:"Services", GDES:"Game Design", PMGT:"Project Mgmt",
+  GART:"Game Art", NAV:"Navigation", EMP:"Employment", IND:"Industry"
+};
+const FMTLABEL = {mc:"객관식", match:"매칭", order:"드래그·순서", hotspot:"핫스팟"};
+
+/* ---------- SVG wireframes for hotspot ---------- */
+function svgEditor(){
+  return `<svg viewBox="0 0 400 250" width="100%" style="max-width:520px;display:block;margin:0 auto">
+    <rect class="frame" x="4" y="4" width="392" height="242" rx="6"/>
+    <rect class="hz" data-r="toolbar" x="8" y="8" width="384" height="24" rx="3"/><text class="zlabel" x="14" y="23">Toolbar</text>
+    <rect class="hz" data-r="playbtn" x="182" y="10" width="36" height="20" rx="3"/><text class="zlabel" x="188" y="23">▶ ‖ ▸</text>
+    <rect class="hz" data-r="hierarchy" x="8" y="36" width="86" height="150" rx="3"/><text class="zlabel" x="14" y="52">Hierarchy</text>
+    <rect class="hz" data-r="scene" x="98" y="36" width="196" height="150" rx="3"/><text class="zlabel" x="104" y="52">Scene</text>
+    <rect class="hz" data-r="game" x="248" y="40" width="42" height="14" rx="2"/><text class="zlabel" x="252" y="50">Game</text>
+    <rect class="hz" data-r="inspector" x="298" y="36" width="94" height="150" rx="3"/><text class="zlabel" x="304" y="52">Inspector</text>
+    <rect class="hz" data-r="project" x="8" y="190" width="240" height="52" rx="3"/><text class="zlabel" x="14" y="206">Project</text>
+    <rect class="hz" data-r="console" x="252" y="190" width="140" height="52" rx="3"/><text class="zlabel" x="258" y="206">Console</text>
+  </svg>`;
+}
+function svgInspector(){
+  return `<svg viewBox="0 0 300 250" width="100%" style="max-width:360px;display:block;margin:0 auto">
+    <rect class="frame" x="4" y="4" width="292" height="242" rx="6"/>
+    <text class="zlabel" x="12" y="20">Inspector</text>
+    <rect class="hz" data-r="transform" x="10" y="26" width="280" height="28" rx="3"/><text class="zlabel" x="16" y="44">Transform  (Position / Rotation / Scale)</text>
+    <rect class="hz" data-r="rb-mass" x="10" y="60" width="280" height="22" rx="3"/><text class="zlabel" x="16" y="74">Rigidbody · Mass</text>
+    <rect class="hz" data-r="rb-drag" x="10" y="86" width="280" height="22" rx="3"/><text class="zlabel" x="16" y="100">Rigidbody · Drag</text>
+    <rect class="hz" data-r="rb-usegravity" x="10" y="112" width="280" height="22" rx="3"/><text class="zlabel" x="16" y="126">Rigidbody · ☑ Use Gravity</text>
+    <rect class="hz" data-r="rb-iskinematic" x="10" y="138" width="280" height="22" rx="3"/><text class="zlabel" x="16" y="152">Rigidbody · ☐ Is Kinematic</text>
+    <rect class="hz" data-r="col-istrigger" x="10" y="164" width="280" height="22" rx="3"/><text class="zlabel" x="16" y="178">Box Collider · ☐ Is Trigger</text>
+    <rect class="hz" data-r="mat-albedo" x="10" y="190" width="280" height="24" rx="3"/><text class="zlabel" x="16" y="205">Material · Albedo ▣</text>
+    <rect class="hz" data-r="addcomponent" x="70" y="220" width="160" height="20" rx="3"/><text class="zlabel" x="112" y="234">Add Component</text>
+  </svg>`;
+}
+
+/* ---------- QUESTION BANK (100) ---------- */
+/* mc: {opts:[], ans:index}  | match: {left:[], right:[] aligned by index}
+   order: {items:[] in correct order}  | hotspot: {tmpl, ans:regionKey} */
+const Q = [
+/* ===== Editor Interface (14) ===== */
+{d:"EDITOR",f:"hotspot",q:"씬 안의 오브젝트 계층(부모-자식) 구조를 확인·편집하려면 어느 창인가?",tmpl:"editor",ans:"hierarchy",e:"Hierarchy 창이 씬 내 오브젝트의 계층을 표시한다."},
+{d:"EDITOR",f:"hotspot",q:"선택한 오브젝트의 컴포넌트와 속성값을 수정하는 창은?",tmpl:"editor",ans:"inspector",e:"Inspector 창에서 컴포넌트·속성을 편집한다."},
+{d:"EDITOR",f:"hotspot",q:"에디터에서 게임을 실행(Play)하는 버튼은?",tmpl:"editor",ans:"playbtn",e:"Toolbar 중앙의 Play 버튼으로 Play Mode에 진입한다."},
+{d:"EDITOR",f:"hotspot",q:"프리팹·스크립트·텍스처 등 프로젝트 에셋이 저장된 창은?",tmpl:"editor",ans:"project",e:"Project 창이 프로젝트의 모든 에셋 저장소다."},
+{d:"EDITOR",f:"hotspot",q:"로그·경고·에러 메시지를 확인하는 창은?",tmpl:"editor",ans:"console",e:"Console 창에서 Debug 로그와 오류를 확인한다."},
+{d:"EDITOR",f:"mc",q:"Scene 뷰에서 카메라를 대상 오브젝트 중심으로 회전시키는 조작은?",opts:["Pan","Zoom","Orbit","Focus"],ans:2,e:"Orbit은 대상 중심 회전. Pan은 평행이동, Focus는 대상으로 이동."},
+{d:"EDITOR",f:"mc",q:"빈 GameObject를 새로 만드는 일반적 위치는?",opts:["Project 창 우클릭","Hierarchy 우클릭 → Create Empty","Console 창","Inspector 하단"],ans:1,e:"Hierarchy에서 Create Empty로 생성한다."},
+{d:"EDITOR",f:"mc",q:"Inspector 창의 주된 역할은?",opts:["에셋 파일 저장","선택 오브젝트의 컴포넌트·속성 편집","씬 3D 편집","빌드 설정"],ans:1,e:"선택된 오브젝트의 속성을 노출·편집한다."},
+{d:"EDITOR",f:"mc",q:"두 오브젝트를 부모-자식 관계로 만들려면?",opts:["Inspector에서 Parent 입력","Hierarchy에서 한 오브젝트를 다른 오브젝트 위로 드래그","Project에서 폴더 이동","태그 지정"],ans:1,e:"Hierarchy 드래그로 부모-자식(자식은 부모 Transform 기준)을 만든다."},
+{d:"EDITOR",f:"mc",q:"Scene 파일이 저장하는 것은?",opts:["오브젝트 배치와 씬 환경","C# 코드","텍스처 이미지","빌드 결과물"],ans:0,e:"씬은 오브젝트 배치·조명·환경 구성을 담는다."},
+{d:"EDITOR",f:"mc",q:"창 배치를 바꾸고 저장하는 기능은?",opts:["Gizmo","Layout(레이아웃)","Prefab","NavMesh"],ans:1,e:"Layout으로 창 도킹 구성을 저장·전환한다."},
+{d:"EDITOR",f:"mc",q:"Project 창의 역할로 옳은 것은?",opts:["실시간 게임 화면","씬 계층 구조","에셋(프리팹/스크립트/오디오 등) 관리","물리 시뮬레이션"],ans:2,e:"Project는 에셋 저장·관리 창이다."},
+{d:"EDITOR",f:"mc",q:"Game 뷰가 보여주는 것은?",opts:["에디터 편집 화면","플레이어가 실제로 보는 카메라 시점","코드 편집기","에셋 목록"],ans:1,e:"Game 뷰는 렌더 카메라 기준 최종 화면이다."},
+{d:"EDITOR",f:"mc",q:"Gizmo 표시를 켜고 끄는 위치는?",opts:["Project 창","Scene 뷰 상단/Toolbar의 Gizmos 토글","Console","Package Manager"],ans:1,e:"Scene 뷰 상단 Gizmos 토글로 제어한다."},
+
+/* ===== Programming (12) ===== */
+{d:"PROG",f:"mc",q:"Rigidbody 기반 물리 이동 코드는 어느 메서드에 넣어야 하는가?",opts:["Awake()","Start()","Update()","FixedUpdate()"],ans:3,e:"물리 연산은 고정 시간 간격의 FixedUpdate()에서 처리한다."},
+{d:"PROG",f:"mc",q:"프레임률과 무관하게 일정한 이동 속도를 얻으려면 이동량에 무엇을 곱하는가?",opts:["Time.time","Time.deltaTime","Time.frameCount","1.0f"],ans:1,e:"Time.deltaTime(직전 프레임 간격)을 곱해 프레임 독립성을 얻는다."},
+{d:"PROG",f:"mc",q:"같은 GameObject에 붙은 다른 컴포넌트 참조를 얻는 방법은?",opts:["new Component()","GetComponent<T>()","Instantiate<T>()","FindTag()"],ans:1,e:"GetComponent<T>()로 같은 오브젝트의 컴포넌트를 가져온다(캐싱 권장)."},
+{d:"PROG",f:"mc",q:"Update() 메서드의 호출 빈도는?",opts:["앱 시작 시 1회","매 프레임 1회","고정 시간마다","충돌 시에만"],ans:1,e:"Update()는 매 프레임 1회 호출된다."},
+{d:"PROG",f:"mc",q:"Awake()와 Start()의 차이로 옳은 것은?",opts:["둘 다 매 프레임 호출","Awake는 오브젝트 로드 시, Start는 첫 프레임 직전 1회","Start가 먼저 호출","둘 다 물리 갱신용"],ans:1,e:"Awake→(활성화)→Start 순. 각각 초기화 시점 1회 호출."},
+{d:"PROG",f:"mc",q:"public으로 선언한 변수의 효과는?",opts:["Inspector에 노출되어 편집 가능","자동으로 상수","렌더링 제외","물리 무시"],ans:0,e:"public 변수는 Inspector에 노출된다([SerializeField]도 유사)."},
+{d:"PROG",f:"mc",q:"3D 회전을 표현할 때 Unity가 내부적으로 사용하는 타입은?",opts:["Vector3","Quaternion","Color","Matrix2x2"],ans:1,e:"회전은 Quaternion으로 표현(짐벌락 회피)."},
+{d:"PROG",f:"mc",q:"프리팹을 런타임에 씬에 생성하는 API는?",opts:["Create()","Instantiate()","Clone()","Spawn()"],ans:1,e:"Instantiate()로 프리팹 원본을 복제해 실체를 만든다."},
+{d:"PROG",f:"mc",q:"Vector3.forward가 가리키는 축은?",opts:["+X","+Y","+Z","-Z"],ans:2,e:"forward는 +Z 방향이다."},
+{d:"PROG",f:"order",q:"스크립트 생명주기 메서드가 호출되는 순서대로 배열하시오.",items:["Awake","OnEnable","Start","Update","LateUpdate"],e:"Awake→OnEnable→Start→Update→LateUpdate (FixedUpdate는 물리 스텝마다 별도)."},
+{d:"PROG",f:"order",q:"새 스크립트를 만들어 동작시키는 작업 순서를 배열하시오.",items:["C# 스크립트 생성","GameObject에 컴포넌트로 부착","코드 작성","Play로 테스트"],e:"생성→부착→작성→테스트."},
+{d:"PROG",f:"order",q:"마우스 클릭 지점으로 레이캐스트를 쏘는 처리 순서를 배열하시오.",items:["Camera.ScreenPointToRay로 광선 생성","Physics.Raycast 호출","hit.collider로 대상 판별"],e:"화면 좌표→광선→레이캐스트→충돌 대상 처리."},
+
+/* ===== Physics (9) ===== */
+{d:"PHYS",f:"mc",q:"트리거/충돌 콜백이 발동하려면 최소 필요한 조건은?",opts:["두 오브젝트 모두 Rigidbody","두 오브젝트 중 최소 하나에 Rigidbody","카메라가 있어야 함","태그가 같아야 함"],ans:1,e:"최소 한쪽에 Rigidbody가 있어야 물리 엔진이 접촉을 계산한다."},
+{d:"PHYS",f:"mc",q:"물리적으로 튕기지 않고 겹침만 감지하려면?",opts:["isTrigger=true + OnTriggerEnter","isTrigger=false + OnCollisionEnter","Rigidbody 제거","Mass=0"],ans:0,e:"isTrigger를 켜면 충돌 반응 없이 겹침만 콜백으로 감지한다."},
+{d:"PHYS",f:"mc",q:"성능상 가장 가벼운(연산이 적은) 콜라이더는?",opts:["Mesh Collider","Primitive(Box/Sphere/Capsule) Collider","Convex Mesh Collider","Terrain Collider"],ans:1,e:"Box/Sphere/Capsule 같은 Primitive 콜라이더가 가장 가볍다. Mesh Collider(특히 non-convex)는 형상 계산이 무겁다."},
+{d:"PHYS",f:"mc",q:"레이캐스트(Raycast)의 용도로 옳은 것은?",opts:["오브젝트 색상 변경","광선을 쏘아 충돌·거리·조준 판별","오디오 재생","애니메이션 전환"],ans:1,e:"Raycast는 광선으로 충돌 지점·거리 등을 얻는다."},
+{d:"PHYS",f:"match",q:"Rigidbody 속성과 효과를 짝지으시오.",left:["Mass","Drag","Use Gravity","Is Kinematic"],right:["질량(충돌 반응에 영향)","공기 저항(감속)","중력 적용 여부","물리엔진 대신 직접 제어"],e:"Mass=질량, Drag=저항, Use Gravity=중력, Is Kinematic=직접제어."},
+{d:"PHYS",f:"match",q:"콜라이더 종류와 특성을 짝지으시오.",left:["Box Collider","Sphere Collider","Capsule Collider","Mesh Collider"],right:["직육면체 범위","구 범위","캡슐(캐릭터에 흔함)","메시 형상(정밀·무거움)"],e:"형상별 콜라이더. Mesh는 정밀하나 연산 비쌈."},
+{d:"PHYS",f:"match",q:"Raycast 파라미터와 의미를 짝지으시오.",left:["origin","direction","maxDistance","layerMask"],right:["광선 시작점","광선 방향","탐지 최대 거리","탐지 대상 레이어 필터"],e:"레이캐스트 인자 구성."},
+{d:"PHYS",f:"hotspot",q:"오브젝트에 중력을 적용/해제하는 체크박스는?",tmpl:"inspector",ans:"rb-usegravity",e:"Rigidbody의 Use Gravity 체크박스로 중력을 제어한다."},
+{d:"PHYS",f:"hotspot",q:"물리엔진이 힘으로 움직이지 않고 스크립트로 직접 제어하게 하는 옵션은?",tmpl:"inspector",ans:"rb-iskinematic",e:"Is Kinematic을 켜면 물리력 대신 Transform으로 직접 제어한다."},
+
+/* ===== Animation (8) ===== */
+{d:"ANIM",f:"mc",q:"Animator에서 상태(State) 간 전환 조건을 결정하는 요소는?",opts:["Sprite","Parameter","Prefab","Material"],ans:1,e:"Parameter(bool/int/float/trigger) 값으로 Transition 조건을 판단한다."},
+{d:"ANIM",f:"mc",q:"Animator Controller의 역할은?",opts:["오디오 재생","애니메이션 상태·전환을 관리하는 에셋","조명 계산","빌드 설정"],ans:1,e:"State/Transition/Parameter를 담는 상태 기계 에셋이다."},
+{d:"ANIM",f:"mc",q:"어느 상태에서든 특정 상태로 전이할 수 있게 하는 특수 상태는?",opts:["Entry","Any State","Exit","Base Layer"],ans:1,e:"Any State는 현재 상태와 무관하게 전이(피격 등)에 쓰인다."},
+{d:"ANIM",f:"mc",q:"Animator Parameter 타입이 아닌 것은?",opts:["bool","int","float","string"],ans:3,e:"파라미터는 bool/int/float/trigger. string은 없다."},
+{d:"ANIM",f:"mc",q:"스크립트에서 bool 파라미터로 애니메이션을 전환하는 호출은?",opts:["animator.Play()","animator.SetBool()","animator.Stop()","animator.AddClip()"],ans:1,e:"animator.SetBool(\"isRunning\", true) 식으로 값을 바꾼다."},
+{d:"ANIM",f:"order",q:"Idle→Run 전환을 만드는 작업 순서를 배열하시오.",items:["Animation State 배치","Parameter(isRunning) 추가","Transition 생성","Transition 조건 설정"],e:"상태 배치→파라미터→전환 생성→조건 설정."},
+{d:"ANIM",f:"order",q:"외부 애니메이션 클립을 게임에 적용하는 순서를 배열하시오.",items:["애니메이션 클립 임포트","Animator Controller 생성","Controller에 State로 배치","GameObject의 Animator에 Controller 연결"],e:"임포트→컨트롤러 생성→상태 배치→연결."},
+{d:"ANIM",f:"order",q:"두 상태 사이 전환 흐름을 배열하시오.",items:["파라미터 값 변경(SetBool)","Transition 조건 충족","다음 State로 전이"],e:"값 변경→조건 충족→전이."},
+
+/* ===== Asset Management (8) ===== */
+{d:"ASSET",f:"mc",q:"Prefab이란 무엇인가?",opts:["일회용 씬","재사용 가능한 오브젝트 템플릿","코드 라이브러리","빌드 파일"],ans:1,e:"Prefab은 재사용·인스턴스화되는 오브젝트 원본이다."},
+{d:"ASSET",f:"mc",q:"Prefab 인스턴스의 변경을 원본에 반영하려면?",opts:["Delete","Overrides → Apply","Rename","Duplicate"],ans:1,e:"Overrides의 Apply로 원본 프리팹에 반영한다."},
+{d:"ASSET",f:"mc",q:"3D 모델의 대표적 임포트 파일 포맷은?",opts:[".mp3",".fbx",".png",".cs"],ans:1,e:"FBX가 모델 임포트의 표준 포맷이다."},
+{d:"ASSET",f:"mc",q:"각 에셋 옆에 생성되는 .meta 파일의 역할은?",opts:["에셋 백업","임포트 설정·GUID 등 메타데이터 저장","실행 파일","로그 기록"],ans:1,e:".meta는 임포트 설정과 참조용 GUID를 담는다."},
+{d:"ASSET",f:"mc",q:"오디오 클립을 프로젝트에 넣을 때 관리하는 대표 압축 개념은?",opts:["Compression Format(예: Vorbis/PCM)","Polygon Count","Anchor","LayerMask"],ans:0,e:"오디오는 압축 포맷 설정으로 용량·품질을 조절한다."},
+{d:"ASSET",f:"match",q:"에셋 종류와 파일/역할을 짝지으시오.",left:["Prefab","Scene","Material","Script"],right:["재사용 오브젝트 템플릿","오브젝트 배치 저장","표면 렌더링 정의","동작 로직(C#)"],e:"에셋 유형별 역할."},
+{d:"ASSET",f:"match",q:"GameObject 관련 개념을 짝지으시오.",left:["GameObject","Component","Empty GameObject","Prefab Instance"],right:["씬의 기본 개체","기능을 부여하는 부품","컴포넌트 컨테이너로 흔히 사용","원본에서 복제된 개체"],e:"오브젝트-컴포넌트 관계."},
+{d:"ASSET",f:"match",q:"파일 포맷과 용도를 짝지으시오.",left:[".fbx",".png",".wav",".cs"],right:["3D 모델","텍스처 이미지","오디오","스크립트"],e:"확장자별 에셋 용도."},
+
+/* ===== User Interface (7) ===== */
+{d:"UI",f:"mc",q:"화면에 고정되는 HUD(체력·점수)에 적합한 Canvas Render Mode는?",opts:["World Space","Screen Space - Overlay","Screen Space - Camera(원근용)","없음"],ans:1,e:"Overlay는 화면 좌표 기준으로 UI를 덧그려 HUD에 적합."},
+{d:"UI",f:"mc",q:"UI 요소의 위치·크기를 제어하는 컴포넌트는?",opts:["Transform","Rect Transform","Rigidbody","Mesh Filter"],ans:1,e:"UI는 Rect Transform으로 앵커·피벗 기반 배치한다."},
+{d:"UI",f:"mc",q:"앵커(Anchor)의 역할은?",opts:["색상 지정","부모 대비 기준점 설정(해상도 대응)","오디오 볼륨","물리 충돌"],ans:1,e:"앵커로 부모 기준 상대 위치를 정해 다양한 해상도에 대응."},
+{d:"UI",f:"mc",q:"연속값(예: 볼륨)을 입력받는 UI 요소는?",opts:["Button","Slider","Image","Text"],ans:1,e:"Slider는 연속값 입력에 쓰인다."},
+{d:"UI",f:"mc",q:"모든 UI 요소의 최상위 렌더 영역은?",opts:["Panel","Canvas","Camera","Layer"],ans:1,e:"UI는 Canvas 하위에 배치되어 렌더된다."},
+{d:"UI",f:"match",q:"UI 요소와 역할을 짝지으시오.",left:["Canvas","Rect Transform","Button","Slider"],right:["UI 최상위 렌더 영역","위치·크기 제어","클릭 상호작용","연속값 입력"],e:"UI 요소별 역할."},
+{d:"UI",f:"match",q:"Canvas Render Mode와 용도를 짝지으시오.",left:["Screen Space - Overlay","Screen Space - Camera","World Space"],right:["화면 위 HUD","카메라 기준 원근 UI","3D 공간 내 UI(머리 위 이름표)"],e:"렌더 모드별 용도."},
+
+/* ===== Lighting (7) ===== */
+{d:"LIGHT",f:"mc",q:"태양광처럼 모든 오브젝트에 평행하게 쏟아지는 라이트 타입은?",opts:["Point","Spot","Directional","Area"],ans:2,e:"Directional은 방향만 있는 평행광(위치 무관)."},
+{d:"LIGHT",f:"mc",q:"라이트맵 베이킹(Baking)의 주된 목적은?",opts:["실시간 물리","조명을 사전 계산해 런타임 성능 향상","오디오 개선","네트워크 동기화"],ans:1,e:"정적 조명을 미리 구워 런타임 부하를 줄인다."},
+{d:"LIGHT",f:"mc",q:"빌트인 렌더러에서 실시간을 지원하지 않고 주로 베이크로 쓰는 라이트는?",opts:["Directional","Point","Spot","Area"],ans:3,e:"Area Light는 베이크 전용(빌트인)."},
+{d:"LIGHT",f:"mc",q:"그림자를 부드럽게/딱딱하게 조절하는 설정은?",opts:["Shadow Type(Hard/Soft)","Mass","Albedo","Drag"],ans:0,e:"Shadow Type으로 Hard/Soft 그림자를 선택한다."},
+{d:"LIGHT",f:"match",q:"라이트 타입과 특성을 짝지으시오.",left:["Directional","Point","Spot","Area"],right:["평행광(태양)","전방향 점광원(전구)","원뿔 범위 집중","면광원(베이크 전용)"],e:"라이트 타입별 특성."},
+{d:"LIGHT",f:"match",q:"라이트 설정과 효과를 짝지으시오.",left:["Intensity","Range","Spot Angle","Color"],right:["밝기","도달 거리","원뿔 각도","빛의 색"],e:"라이트 파라미터."},
+{d:"LIGHT",f:"match",q:"GI/베이킹 용어를 짝지으시오.",left:["Baked GI","Realtime GI","Lightmap"],right:["사전 계산 조명","런타임 계산 조명","구운 조명 정보를 담는 텍스처"],e:"전역 조명 관련 용어."},
+
+/* ===== Audio (5) ===== */
+{d:"AUDIO",f:"mc",q:"멀어지는 사이렌처럼 상대 속도로 음높이가 변하는 효과는?",opts:["Reverb","Doppler Effect","Echo","Chorus"],ans:1,e:"Doppler는 상대 속도에 따른 피치 변화."},
+{d:"AUDIO",f:"mc",q:"오디오를 반복 재생하게 하는 설정은?",opts:["Loop","Mute","Solo","Bypass"],ans:0,e:"Audio Source의 Loop로 반복 재생한다."},
+{d:"AUDIO",f:"mc",q:"소리를 2D↔3D(거리감)로 조절하는 Audio Source 설정은?",opts:["Spatial Blend","Priority","Stereo Pan","Pitch"],ans:0,e:"Spatial Blend로 2D/3D 공간감을 조절한다."},
+{d:"AUDIO",f:"match",q:"오디오 컴포넌트와 역할을 짝지으시오.",left:["Audio Source","Audio Listener","Audio Mixer","Reverb Zone"],right:["소리 재생 주체","소리를 듣는 지점(주로 카메라)","여러 소리 믹싱·라우팅","공간 잔향 적용 영역"],e:"오디오 컴포넌트 구성."},
+{d:"AUDIO",f:"mc",q:"같은 효과음(예: 발소리)을 짧은 간격으로 여러 번 겹쳐 재생할 때 자연스럽게 처리하는 방법은?",opts:["Loop 체크","AudioSource.PlayOneShot() 사용","Mute 후 재생","Spatial Blend를 2D로"],ans:1,e:"PlayOneShot()은 재생 중인 소리를 끊지 않고 새 소리를 겹쳐 재생해 반복 효과음에 적합하다."},
+
+/* ===== Materials & Effects (5) ===== */
+{d:"MAT",f:"mc",q:"머티리얼이 스스로 빛을 내뿜는(발광) 것처럼 밝게 보이게 하는 Standard Shader 속성은?",opts:["Albedo","Emission","Metallic","Normal Map"],ans:1,e:"Emission은 표면이 스스로 빛나는 발광 효과를 준다(Bloom·베이크 GI와 함께 쓰면 주변까지 밝힘)."},
+{d:"MAT",f:"mc",q:"불꽃·연기처럼 다수의 작은 입자 효과를 만드는 컴포넌트는?",opts:["Line Renderer","Particle System","Sprite Renderer","Trail Renderer"],ans:1,e:"Particle System으로 입자 효과를 만든다."},
+{d:"MAT",f:"match",q:"셰이더 속성과 설명을 짝지으시오.",left:["Albedo","Metallic","Smoothness","Normal Map"],right:["기본 색/텍스처","금속성 정도","광택(매끄러움)","표면 요철 표현"],e:"Standard Shader 속성."},
+{d:"MAT",f:"match",q:"Particle System 모듈과 역할을 짝지으시오.",left:["Emission","Shape","Lifetime","Velocity"],right:["방출량/방출률","방출 형태","입자 수명","입자 속도"],e:"파티클 모듈 구성."},
+{d:"MAT",f:"hotspot",q:"머티리얼의 기본 색(Albedo)을 바꾸려면 Inspector의 어느 필드를 클릭하는가?",tmpl:"inspector",ans:"mat-albedo",e:"Material 섹션의 Albedo 색상 필드에서 변경한다."},
+
+/* ===== Services (5) ===== */
+{d:"SVC",f:"mc",q:"플레이어 행동 데이터를 수집·분석해 이탈 지점을 파악하는 서비스는?",opts:["Unity Ads","Unity Analytics","Unity Cloud Build","Asset Store"],ans:1,e:"Analytics로 플레이어 데이터를 분석한다."},
+{d:"SVC",f:"mc",q:"코드 커밋 시 자동으로 여러 플랫폼 빌드를 만드는 서비스는?",opts:["Cloud Build","Ads","Analytics","Reverb"],ans:0,e:"Cloud Build가 자동·다중 플랫폼 빌드를 수행한다."},
+{d:"SVC",f:"mc",q:"게임 내 광고로 수익화하는 서비스는?",opts:["Unity Ads","Unity Analytics","NavMesh","Lightmap"],ans:0,e:"Unity Ads로 광고 수익화를 구현한다."},
+{d:"SVC",f:"match",q:"Unity 서비스와 기능을 짝지으시오.",left:["Ads","Analytics","Cloud Build","Version Control"],right:["광고 수익화","데이터 분석","자동 빌드","팀 협업·형상관리"],e:"Version Control(구 Collaborate/Plastic SCM)은 팀 형상관리 서비스다."},
+{d:"SVC",f:"match",q:"수익화·운영 개념을 짝지으시오.",left:["In-App Purchase","Ads","Analytics"],right:["앱 내 결제","광고 노출","지표 측정"],e:"수익화·운영 서비스."},
+
+/* ===== Game Design (4) ===== */
+{d:"GDES",f:"mc",q:"실시간 전략(RTS) 장르의 특징으로 옳은 것은?",opts:["턴을 번갈아 진행","자원 관리와 유닛 실시간 조작","1인칭 슈팅 고정","텍스트 입력 전용"],ans:1,e:"RTS는 실시간 자원·유닛 운용이 핵심."},
+{d:"GDES",f:"mc",q:"3인칭 시점(Third Person)의 특징은?",opts:["카메라가 캐릭터 눈","카메라가 캐릭터 뒤/외부에서 캐릭터를 봄","화면에 캐릭터 없음","2D 전용"],ans:1,e:"3인칭은 캐릭터를 외부 시점에서 본다."},
+{d:"GDES",f:"mc",q:"게임 메커니즘(Mechanic)이란?",opts:["게임의 그래픽 스타일","플레이어 행동과 규칙의 상호작용 체계","배경 음악","저장 포맷"],ans:1,e:"메커니즘은 행동·규칙의 상호작용 체계다."},
+{d:"GDES",f:"mc",q:"캐주얼 게임의 일반적 특징은?",opts:["높은 진입장벽","짧고 단순하며 접근성 높음","전용 컨트롤러 필수","오프라인 불가"],ans:1,e:"캐주얼은 단순·접근성 중심."},
+
+/* ===== Project Management (4) ===== */
+{d:"PMGT",f:"mc",q:"Layer의 대표적 기능은?",opts:["오브젝트 개별 식별","렌더링/충돌 등을 그룹으로 구분·필터","색상 지정","오디오 라우팅"],ans:1,e:"Layer는 렌더/충돌 그룹 구분·마스킹에 쓰인다."},
+{d:"PMGT",f:"mc",q:"Tag의 대표적 용도는?",opts:["오브젝트를 이름표로 식별(예: Player)","조명 계산","물리 질량","셰이더 속성"],ans:0,e:"Tag는 오브젝트 식별·검색에 사용."},
+{d:"PMGT",f:"match",q:"프로젝트 관리 개념을 짝지으시오.",left:["Layer","Tag","Transform","Component"],right:["그룹 구분(렌더/충돌)","개체 식별 라벨","위치·회전·크기","기능 부품"],e:"관리용 개념 구분."},
+{d:"PMGT",f:"mc",q:"부모(Parent) 오브젝트를 이동시키면 자식(Child) 오브젝트는 어떻게 되는가?",opts:["그 자리에 멈춰 있다","부모를 따라 함께 이동한다","씬에서 사라진다","크기만 바뀐다"],ans:1,e:"자식은 부모의 Transform을 기준(로컬 좌표)으로 하므로, 부모가 이동·회전하면 함께 따라간다."},
+
+/* ===== Game Art (3) ===== */
+{d:"GART",f:"mc",q:"컨셉 아트(Concept Art)의 목적은?",opts:["최종 출시 빌드","개발 전 룩앤필·방향성 제시","버그 추적","서버 부하 측정"],ans:1,e:"컨셉 아트로 시각적 방향을 사전 공유한다."},
+{d:"GART",f:"mc",q:"색채(Color Palette)가 게임에 미치는 주요 영향은?",opts:["프레임률 향상","분위기(mood)와 정서 전달","물리 정확도","저장 용량 감소"],ans:1,e:"색채 선택은 분위기·정서를 좌우한다."},
+{d:"GART",f:"mc",q:"모델 에셋 최적화 방법으로 옳은 것은?",opts:["폴리곤 수·텍스처 크기 적절히 축소","항상 최대 해상도 유지","콜라이더 제거","레이어 삭제"],ans:0,e:"폴리곤·텍스처 최적화로 성능을 확보한다."},
+
+/* ===== Navigation (3) ===== */
+{d:"NAV",f:"mc",q:"NavMesh의 기능은?",opts:["조명 굽기","이동 가능 영역을 정의해 경로 탐색","오디오 믹싱","UI 배치"],ans:1,e:"NavMesh는 이동 가능 표면을 정의한다."},
+{d:"NAV",f:"mc",q:"NavMesh 베이크의 Max Slope 설정 의미는?",opts:["최대 밝기","에이전트가 오를 수 있는 최대 경사","최대 속도","최대 폴리곤"],ans:1,e:"Max Slope는 오를 수 있는 경사 한계다."},
+{d:"NAV",f:"match",q:"내비게이션 용어를 짝지으시오.",left:["NavMesh","NavMesh Agent","Obstacle","Max Slope"],right:["이동 가능 영역","경로 따라 이동하는 개체","회피 대상 장애물","오를 수 있는 경사 한계"],e:"패스파인딩 구성 요소."},
+
+/* ===== Employment (3) ===== */
+{d:"EMP",f:"mc",q:"미공개 프로젝트 정보 유출을 막기 위해 입사 시 서명하는 문서는?",opts:["EULA","NDA(비밀유지계약)","SDK","API"],ans:1,e:"NDA로 기밀 정보를 보호한다."},
+{d:"EMP",f:"mc",q:"IP(지식재산)의 의미로 옳은 것은?",opts:["인터넷 주소","창작물에 대한 법적 권리","입력 장치","이미지 파일"],ans:1,e:"IP는 창작·지식재산에 대한 권리."},
+{d:"EMP",f:"mc",q:"게임 개발에서 크리틱(critique)의 의미는?",opts:["단순 비난","건설적 피드백으로 작업을 개선하는 과정","일정 관리","버전 관리"],ans:1,e:"크리틱은 개선을 위한 건설적 피드백이다."},
+
+/* ===== Industry (3) ===== */
+{d:"IND",f:"mc",q:"QA(Quality Assurance) 담당의 역할은?",opts:["사운드 작곡","게임 테스트로 버그·이슈 발견 및 피드백","마케팅","서버 구축"],ans:1,e:"QA는 테스트로 품질을 검증한다."},
+{d:"IND",f:"mc",q:"게임 프로덕션 단계 순서로 자연스러운 것은?",opts:["Pre-production → Production → Post-production","Production → Pre-production → Post","Post → Production → Pre","순서 무관"],ans:0,e:"기획(전)→제작→마무리(후) 순."},
+{d:"IND",f:"mc",q:"콘솔 하드웨어를 구분하는 기준으로 적절한 것은?",opts:["작곡 스타일","성능·입력장치·플랫폼 특성","폰트 종류","할인율"],ans:1,e:"콘솔은 성능·컨트롤러·플랫폼 특성으로 구분한다."},
+/* ===== 확장 문항 (+28, 공식 출제비중 정렬) ===== */
+{d:"EDITOR",f:"mc",lvl:"中",q:"여러 오브젝트를 한꺼번에 선택해 공통 속성을 동시에 편집하려면?",opts:["불가능하다","Hierarchy에서 Ctrl(⌘)/Shift로 다중 선택 후 편집","Project 창에서만 가능","프리팹으로 먼저 묶어야 한다"],ans:1,e:"Hierarchy에서 Ctrl(⌘)/Shift로 여러 개를 선택하면 Inspector에서 공통 속성을 한 번에 편집한다."},
+{d:"EDITOR",f:"mc",lvl:"中",q:"Scene 뷰에서 선택한 오브젝트로 카메라를 즉시 이동(포커스)하는 단축키는?",opts:["F","G","P","M"],ans:0,e:"오브젝트 선택 후 F키를 누르면 Scene 카메라가 대상에 포커스한다."},
+{d:"EDITOR",f:"mc",lvl:"下",q:"Play 버튼 옆 Pause 버튼의 역할은?",opts:["빌드 중지","Play Mode를 일시정지(프레임 확인)","씬 저장","오브젝트 삭제"],ans:1,e:"Pause는 실행 중인 Play Mode를 멈춰 상태를 확인하게 한다."},
+{d:"EDITOR",f:"mc",lvl:"下",q:"이동·회전·크기 도구 기본 단축키 W/E/R 중 '회전' 도구는?",opts:["W","E","R","T"],ans:1,e:"W=이동, E=회전, R=크기(Q=화면 이동, T=Rect)."},
+{d:"EDITOR",f:"hotspot",lvl:"中",q:"실행 중 플레이어가 실제로 보는 최종 화면을 미리 보는 탭은?",tmpl:"editor",ans:"game",e:"Game 탭이 렌더 카메라 기준 실제 플레이 화면을 보여준다."},
+{d:"PROG",f:"mc",lvl:"中",q:"'Player' 태그를 가진 오브젝트를 코드로 찾는 API는?",opts:["GameObject.Find()","GameObject.FindWithTag(\"Player\")","GetComponent()","Instantiate()"],ans:1,e:"FindWithTag로 태그 기반 검색을 한다(매 프레임 호출은 성능상 지양)."},
+{d:"PROG",f:"mc",lvl:"上",q:"코루틴에서 1초 기다린 뒤 다음 줄을 실행하려면?",opts:["Wait(1)","yield return new WaitForSeconds(1f)","Thread.Sleep(1000)","delay 1"],ans:1,e:"코루틴은 yield return new WaitForSeconds(1f)로 지정 시간 대기 후 이어 실행한다."},
+{d:"PROG",f:"mc",lvl:"中",q:"[SerializeField] private 변수의 효과는?",opts:["코드에서 접근 불가","private을 유지하면서 Inspector에 노출·저장","자동 상수화","렌더링에서 제외"],ans:1,e:"[SerializeField]는 캡슐화(private)를 지키면서 Inspector에 노출한다."},
+{d:"PHYS",f:"mc",lvl:"上",q:"Rigidbody에 순간적인 점프 힘을 주는 적절한 방법은?",opts:["transform.position을 직접 변경","AddForce(..., ForceMode.Impulse)","Scale을 키움","Time.deltaTime을 곱함"],ans:1,e:"순간 힘은 AddForce에 ForceMode.Impulse. 위치 직접 변경은 물리 충돌을 무시한다."},
+{d:"PHYS",f:"mc",lvl:"中",q:"OnCollisionEnter와 OnTriggerEnter의 차이로 옳은 것은?",opts:["완전히 동일하다","Collision은 물리 충돌 반응이 있고, Trigger는 겹침만 감지","Trigger가 더 무겁다","Collision은 2D 전용"],ans:1,e:"isTrigger가 꺼진 접촉은 OnCollisionEnter(반응 O), 켜지면 OnTriggerEnter(겹침 감지)."},
+{d:"ANIM",f:"mc",lvl:"中",q:"걷기→달리기처럼 파라미터에 따라 애니메이션을 부드럽게 혼합하는 것은?",opts:["오디오 믹싱","Blend Tree","라이트 베이크","Canvas"],ans:1,e:"Blend Tree는 속도 등 파라미터 값에 따라 여러 클립을 연속적으로 혼합한다."},
+{d:"ANIM",f:"mc",lvl:"上",q:"발이 땅에 닿는 특정 프레임에 소리를 재생하도록 애니메이션에 함수를 거는 기능은?",opts:["Animation Event","Collider","NavMesh","Prefab"],ans:0,e:"Animation Event로 클립의 특정 프레임에서 함수를 호출할 수 있다."},
+{d:"ASSET",f:"mc",lvl:"中",q:"Prefab Variant(프리팹 변형)의 개념으로 옳은 것은?",opts:["원본 프리팹을 상속해 일부만 다르게 만든 변형","완전 독립 복사본","씬 파일의 일종","스크립트 템플릿"],ans:0,e:"Prefab Variant는 베이스 프리팹을 상속받아 차이점만 재정의한다."},
+{d:"ASSET",f:"mc",lvl:"下",q:"임포트한 텍스처의 압축·최대 크기 설정을 바꾸는 창은?",opts:["Console","Inspector","Hierarchy","Game 뷰"],ans:1,e:"에셋을 선택하면 Inspector에 임포트 설정이 나타난다."},
+{d:"UI",f:"mc",lvl:"中",q:"여러 해상도에서 UI가 비례해 커지고 작아지게 하는 컴포넌트는?",opts:["Canvas Scaler","Rigidbody","Light","NavMesh"],ans:0,e:"Canvas Scaler의 Scale With Screen Size로 해상도 대응 스케일링을 한다."},
+{d:"UI",f:"mc",lvl:"下",q:"버튼을 눌렀을 때 실행할 함수를 연결하는 곳은?",opts:["Button의 OnClick() 이벤트","Rigidbody","Animator","Console"],ans:0,e:"Button 컴포넌트의 OnClick() 리스트에 대상 오브젝트와 함수를 등록한다."},
+{d:"UI",f:"mc",lvl:"中",q:"확대해도 글자가 선명하고 서식이 풍부한 Unity 텍스트 솔루션은?",opts:["물리 텍스트","TextMeshPro","Legacy GUIText","Console 로그"],ans:1,e:"TextMeshPro는 SDF 기반이라 확대해도 선명하고 외곽선·그림자 등 서식이 풍부하다."},
+{d:"LIGHT",f:"mc",lvl:"中",q:"움직이지 않는 오브젝트를 라이트맵 베이크 대상으로 포함하려면?",opts:["오브젝트를 Static(Contribute GI)으로 표시","Is Kinematic 켜기","Is Trigger 켜기","Convex 켜기"],ans:0,e:"오브젝트를 Static(Contribute GI)으로 표시해야 베이크에 포함된다."},
+{d:"LIGHT",f:"mc",lvl:"上",q:"동적 캐릭터가 베이크된 정적 조명 속에서도 자연스러운 음영을 받게 하는 요소는?",opts:["Light Probe","NavMesh","Collider","Canvas"],ans:0,e:"Light Probe가 공간의 베이크 조명을 샘플링해 동적 오브젝트에 적용한다."},
+{d:"AUDIO",f:"mc",lvl:"中",q:"배경음악과 효과음 볼륨을 그룹 단위로 따로 조절하려면?",opts:["Audio Mixer의 그룹 사용","각 소스를 개별로만 조절","Reverb Zone","Doppler"],ans:0,e:"Audio Mixer에 BGM/SFX 그룹을 만들어 그룹 단위로 볼륨을 라우팅·조절한다."},
+{d:"AUDIO",f:"mc",lvl:"下",q:"3D 사운드에서 소리가 멀어질수록 작아지는 감쇠를 정의하는 곡선은?",opts:["Volume Rolloff","Pitch","Loop","Bypass"],ans:0,e:"Volume Rolloff(거리 감쇠 곡선)로 거리별 음량을 정의한다."},
+{d:"MAT",f:"mc",lvl:"中",q:"유리처럼 뒤가 비치는 반투명 재질을 만들려면 무엇을 바꾸나?",opts:["Rendering Mode를 Transparent로","Metallic을 1로","Normal Map 제거","Loop 켜기"],ans:0,e:"Standard Shader의 Rendering Mode를 Transparent(또는 Fade)로 바꾸고 알파를 조절한다."},
+{d:"MAT",f:"mc",lvl:"上",q:"금속 표면을 사실적으로 표현할 때 함께 조절하는 두 속성은?",opts:["Metallic과 Smoothness","Albedo와 Loop","Mass와 Drag","Range와 Intensity"],ans:0,e:"PBR에서 금속감은 Metallic↑과 Smoothness(광택)↑를 함께 조절해 표현한다."},
+{d:"SVC",f:"mc",lvl:"中",q:"게임 내 아이템 판매(인앱결제)를 구현하는 Unity 서비스는?",opts:["In-App Purchasing(IAP)","Analytics","NavMesh","Lightmap"],ans:0,e:"Unity IAP로 앱스토어 인앱결제를 구현한다."},
+{d:"GDES",f:"mc",lvl:"中",q:"게임의 코어 루프(Core Loop)란?",opts:["로딩 화면 순서","플레이어가 반복하는 핵심 행동 사이클","데이터 저장 방식","렌더링 순서"],ans:1,e:"코어 루프는 '행동→보상→성장'처럼 반복되는 핵심 플레이 사이클이다."},
+{d:"PMGT",f:"mc",lvl:"上",q:"특정 Layer끼리만 물리 충돌이 일어나게 제어하는 설정은?",opts:["Layer Collision Matrix","Tag","Sorting Layer","Prefab"],ans:0,e:"Project Settings의 Layer Collision Matrix로 어떤 레이어끼리 충돌할지 지정한다."},
+{d:"GART",f:"mc",lvl:"上",q:"여러 텍스처를 한 장에 모아 드로우콜을 줄이는 기법은?",opts:["Texture Atlas(아틀라스)","Raycast","라이트 베이크","NavMesh"],ans:0,e:"텍스처 아틀라스로 여러 이미지를 한 장에 합쳐 배치·드로우콜을 절감한다."},
+{d:"NAV",f:"mc",lvl:"上",q:"떨어진 NavMesh 영역(점프·사다리 등)을 이어 에이전트가 건너가게 하는 요소는?",opts:["Off-Mesh Link","Collider","Light Probe","Canvas"],ans:0,e:"Off-Mesh Link로 분리된 NavMesh 구간을 연결한다."},
+/* ===== 배치 확장 문항 (+51, 개념 다양화) ===== */
+{d:"EDITOR",f:"mc",lvl:"下",q:"직전 작업을 되돌리는(Undo) 기본 단축키는?",opts:["Ctrl(⌘)+Z","Ctrl+S","Ctrl+P","Alt+F4"],ans:0,e:"Ctrl(⌘)+Z로 마지막 작업을 취소한다. 다시 실행은 Ctrl+Y(⌘+Shift+Z)."},
+{d:"EDITOR",f:"mc",lvl:"下",q:"선택한 오브젝트를 그대로 하나 더 복제하는 단축키는?",opts:["Ctrl(⌘)+D","Ctrl+X","Ctrl+F","Ctrl+G"],ans:0,e:"Ctrl(⌘)+D로 선택 오브젝트를 복제한다."},
+{d:"EDITOR",f:"mc",lvl:"中",q:"이동 도구로 드래그할 때 격자 간격에 맞춰 딱딱 끊어 이동시키려면(Windows)?",opts:["Shift를 누른 채 드래그","Ctrl을 누른 채 드래그","Alt을 누른 채 드래그","Tab을 누른 채 드래그"],ans:1,e:"Windows에서 Ctrl(맥은 ⌘)을 누른 채 이동하면 Grid and Snap 설정 간격으로 스냅된다."},
+{d:"EDITOR",f:"mc",lvl:"中",q:"프리팹의 원본 자체를 여는(편집 모드 진입) 일반적 방법은?",opts:["Console에서 우클릭","Project에서 프리팹 더블클릭 또는 Inspector의 Open","Game 뷰에서 클릭","빌드하기"],ans:1,e:"Project의 프리팹을 더블클릭(또는 Open Prefab)하면 프리팹 편집 모드로 들어간다."},
+{d:"EDITOR",f:"mc",lvl:"下",q:"Scene 뷰를 2D/3D 시점으로 전환하는 토글은 어디에 있나?",opts:["Scene 뷰 상단 툴바의 2D 버튼","Console 창","Project 창","Inspector 하단"],ans:0,e:"Scene 뷰 상단 툴바의 2D 토글로 평면/입체 시점을 전환한다."},
+{d:"EDITOR",f:"mc",lvl:"上",q:"이동 기즈모의 축을 오브젝트 자체 방향(Local)과 월드 방향(Global)으로 바꾸는 토글은?",opts:["Pivot/Center 토글","Local/Global 토글","Layers 토글","Gizmos 토글"],ans:1,e:"툴바의 Local/Global 토글로 조작 축 기준을 오브젝트 로컬축과 월드축 사이에서 전환한다."},
+{d:"EDITOR",f:"mc",lvl:"中",q:"스크립트를 수정·저장하고 Unity 에디터로 돌아오면 일어나는 일은?",opts:["자동으로 스크립트를 컴파일한다","씬이 삭제된다","빌드가 실행된다","아무 일도 없다"],ans:0,e:"에디터로 포커스가 돌아오면 변경된 스크립트를 자동 컴파일한다(우하단 스피너)."},
+{d:"PROG",f:"mc",lvl:"下",q:"게임 오브젝트를 코드로 제거하는 API는?",opts:["Remove()","Destroy(gameObject)","Delete()","Clear()"],ans:1,e:"Destroy(gameObject)로 오브젝트를 파괴한다(2번째 인자로 지연 시간 지정 가능)."},
+{d:"PROG",f:"mc",lvl:"下",q:"콘솔 창에 값을 출력해 디버깅하는 코드는?",opts:["print.console()","Debug.Log()","Console.Write()","Trace()"],ans:1,e:"Debug.Log()로 Console 창에 메시지를 출력한다."},
+{d:"PROG",f:"mc",lvl:"中",q:"Transform을 통해 오브젝트를 지정 방향으로 이동시키는 메서드는?",opts:["transform.Move()","transform.Translate()","transform.Shift()","transform.Go()"],ans:1,e:"transform.Translate(방향*속도*Time.deltaTime)로 이동시킨다."},
+{d:"PROG",f:"mc",lvl:"上",q:"키를 '누르고 있는 동안' 매 프레임 참을 반환하는 입력 함수는?",opts:["Input.GetKeyDown","Input.GetKey","Input.GetKeyUp","Input.AnyKey"],ans:1,e:"GetKey는 누르는 중 매 프레임 true, GetKeyDown은 눌린 그 프레임만, GetKeyUp은 뗀 프레임만 true."},
+{d:"PROG",f:"mc",lvl:"中",q:"코루틴을 실제로 시작(구동)시키는 호출은?",opts:["RunCoroutine()","StartCoroutine()","yield()","Invoke()"],ans:1,e:"StartCoroutine(MyRoutine())로 코루틴을 시작한다."},
+{d:"PROG",f:"mc",lvl:"中",q:"값을 지정한 최소·최대 범위 안으로 제한하는 함수는?",opts:["Mathf.Clamp","Mathf.Abs","Mathf.Round","Mathf.Pow"],ans:0,e:"Mathf.Clamp(값, 최소, 최대)로 범위를 벗어나지 않게 제한한다."},
+{d:"PHYS",f:"mc",lvl:"中",q:"공이 바닥에 튀는 정도(반발력)나 마찰을 정의하는 에셋은?",opts:["Physic Material","Animator Controller","NavMesh","Light Probe"],ans:0,e:"Physic Material의 Bounciness·Friction으로 튐과 마찰을 정의해 콜라이더에 적용한다."},
+{d:"PHYS",f:"mc",lvl:"上",q:"빠르게 움직이는 물체가 얇은 벽을 뚫고 지나가는(터널링) 문제를 줄이는 Rigidbody 설정은?",opts:["Collision Detection을 Continuous로","Mass를 0으로","Is Kinematic 켜기","Drag를 최대로"],ans:0,e:"Collision Detection을 Continuous(연속 충돌 검사)로 두면 고속 물체의 관통을 줄인다."},
+{d:"PHYS",f:"mc",lvl:"中",q:"프로젝트 전체의 중력 방향·세기를 바꾸는 곳은?",opts:["Project Settings > Physics의 Gravity","각 오브젝트의 Scale","Lighting 설정","Audio Mixer"],ans:0,e:"Project Settings > Physics의 Gravity(기본 Y=-9.81)에서 전역 중력을 설정한다."},
+{d:"PHYS",f:"mc",lvl:"中",q:"Rigidbody가 특정 축으로 이동·회전하지 못하게 고정하는 설정은?",opts:["Constraints(Freeze Position/Rotation)","Interpolate","Layer","Tag"],ans:0,e:"Rigidbody의 Constraints로 특정 축의 이동·회전을 잠근다(예: 2D처럼 Z 고정)."},
+{d:"PHYS",f:"mc",lvl:"上",q:"한 점 주변 구 범위 안의 콜라이더들을 한꺼번에 찾는 API는?",opts:["Physics.Raycast","Physics.OverlapSphere","Physics.Gravity","Physics.Simulate"],ans:1,e:"Physics.OverlapSphere(중심, 반지름)로 범위 내 콜라이더 배열을 얻는다(폭발 범위 판정 등)."},
+{d:"ANIM",f:"mc",lvl:"下",q:"애니메이션 클립을 반복 재생되게 하는 임포트 설정은?",opts:["Loop Time","Root Motion","Has Exit Time","Mirror"],ans:0,e:"클립의 Loop Time을 켜면 반복 재생된다."},
+{d:"ANIM",f:"mc",lvl:"中",q:"Transition의 'Has Exit Time'이 켜져 있으면?",opts:["즉시 전이","현재 애니메이션이 지정 지점까지 재생된 뒤 전이","전이하지 않음","역재생"],ans:1,e:"Has Exit Time이 켜지면 현재 클립이 정해진 시점까지 재생된 후에 다음 상태로 전이한다."},
+{d:"ANIM",f:"mc",lvl:"上",q:"애니메이션이 캐릭터의 실제 위치 이동까지 담당하게 하는 기능은?",opts:["Root Motion","Blend Tree","Any State","Avatar Mask"],ans:0,e:"Root Motion을 켜면 애니메이션 클립의 움직임이 오브젝트의 실제 이동으로 적용된다."},
+{d:"ANIM",f:"mc",lvl:"上",q:"상체는 총 쏘고 하체는 걷는 것처럼 신체 부위별로 애니메이션을 분리 적용하려면?",opts:["Animation Layer + Avatar Mask","Blend Tree 하나","NavMesh","Particle System"],ans:0,e:"Animator Layer에 Avatar Mask를 적용해 신체 부위별로 다른 애니메이션을 겹쳐 재생한다."},
+{d:"ASSET",f:"mc",lvl:"中",q:"코드에서 경로 문자열로 런타임에 불러오도록 에셋을 담아두는 특수 폴더는?",opts:["Resources","Editor","Gizmos","StreamingAssets"],ans:0,e:"Resources 폴더의 에셋은 Resources.Load(\"경로\")로 런타임에 불러올 수 있다."},
+{d:"ASSET",f:"mc",lvl:"中",q:"외부 패키지·Unity 기능 모듈을 설치·업데이트·삭제하는 창은?",opts:["Package Manager","Console","Animator","Profiler"],ans:0,e:"Window > Package Manager에서 패키지를 관리한다."},
+{d:"ASSET",f:"mc",lvl:"下",q:"2D 게임에서 이미지를 스프라이트로 쓰려면 텍스처의 Texture Type을 무엇으로 설정하나?",opts:["Sprite (2D and UI)","Cubemap","Normal Map","Cursor"],ans:0,e:"Texture Type을 Sprite(2D and UI)로 설정해야 2D 스프라이트로 사용된다."},
+{d:"ASSET",f:"mc",lvl:"中",q:"프리팹 안에 다른 프리팹을 포함하는 구조를 뜻하는 것은?",opts:["Nested Prefab(중첩 프리팹)","Prefab Override","Scene","Material"],ans:0,e:"Nested Prefab은 프리팹 내부에 또 다른 프리팹 인스턴스를 넣어 재사용성을 높인다."},
+{d:"UI",f:"mc",lvl:"中",q:"UI 요소가 회전·스케일될 때 기준이 되는 중심점은?",opts:["Anchor","Pivot","Canvas","Layer"],ans:1,e:"Pivot이 Rect Transform의 회전·스케일 기준점이다(앵커는 부모 기준 배치)."},
+{d:"UI",f:"mc",lvl:"上",q:"버튼 배경 이미지를 늘려도 모서리가 뭉개지지 않게 하는 Image Type은?",opts:["Simple","Sliced(9-slice)","Filled","Tiled"],ans:1,e:"Sliced(9-slice)는 모서리를 고정하고 가운데만 늘려 테두리 왜곡을 막는다."},
+{d:"UI",f:"mc",lvl:"下",q:"켜고 끄는 상태(체크박스)를 입력받는 UI 요소는?",opts:["Slider","Toggle","Image","Text"],ans:1,e:"Toggle은 on/off 상태를 나타내는 체크박스형 UI다."},
+{d:"UI",f:"mc",lvl:"中",q:"자식 UI들을 가로·세로로 자동 정렬·간격 배치해 주는 컴포넌트는?",opts:["Layout Group(Horizontal/Vertical)","Rigidbody","Canvas Scaler","Animator"],ans:0,e:"Horizontal/Vertical Layout Group이 자식 요소를 자동으로 정렬·배치한다."},
+{d:"LIGHT",f:"mc",lvl:"中",q:"광원이 없어도 씬 전체를 은은하게 밝히는 기본 조명은?",opts:["Ambient Light(환경광)","Spot Light","Area Light","Point Light"],ans:0,e:"Lighting 설정의 Ambient Light(환경광)가 씬 전역의 기본 밝기를 담당한다."},
+{d:"LIGHT",f:"mc",lvl:"上",q:"주변 환경을 반사하는 금속·거울 표면을 사실적으로 만들려면?",opts:["Reflection Probe","NavMesh","Audio Listener","Rigidbody"],ans:0,e:"Reflection Probe가 주변을 캡처해 반사에 사용, 금속·유리 반사를 사실적으로 만든다."},
+{d:"LIGHT",f:"mc",lvl:"中",q:"특정 오브젝트가 그림자를 만들지/받을지 켜고 끄는 렌더러 설정은?",opts:["Cast/Receive Shadows","Loop Time","Spatial Blend","Is Trigger"],ans:0,e:"Mesh Renderer의 Cast Shadows / Receive Shadows로 그림자 생성·수신을 제어한다."},
+{d:"AUDIO",f:"mc",lvl:"下",q:"소리 '데이터 파일'과 그것을 '재생하는 컴포넌트'를 옳게 짝지은 것은?",opts:["AudioClip=데이터, AudioSource=재생기","AudioSource=데이터, AudioClip=재생기","둘 다 데이터","둘 다 재생기"],ans:0,e:"AudioClip은 소리 데이터, AudioSource는 그 클립을 재생하는 컴포넌트다."},
+{d:"AUDIO",f:"mc",lvl:"中",q:"씬에서 소리를 '듣는' 지점인 Audio Listener는 보통 몇 개 두나?",opts:["여러 개 필수","하나(주로 메인 카메라)","0개","오브젝트마다 하나씩"],ans:1,e:"Audio Listener는 보통 메인 카메라에 하나만 둔다(여러 개면 경고)."},
+{d:"AUDIO",f:"mc",lvl:"上",q:"용량 큰 배경음악을 메모리에 다 올리지 않고 흘려보내며 재생하는 Load Type은?",opts:["Decompress On Load","Streaming","Compressed In Memory","Preload"],ans:1,e:"Streaming은 디스크에서 스트리밍 재생해 메모리 사용을 줄인다(긴 BGM에 적합)."},
+{d:"MAT",f:"mc",lvl:"中",q:"Material과 Shader의 관계로 옳은 것은?",opts:["Material은 Shader에 속성값을 채운 인스턴스","Shader가 Material의 하위 파일","둘은 무관","Material이 코드를 실행"],ans:0,e:"Shader가 렌더링 방식을 정의하고, Material은 그 Shader에 색·텍스처 등 값을 채운 인스턴스다."},
+{d:"MAT",f:"mc",lvl:"中",q:"머티리얼에서 텍스처가 표면에 몇 번 반복될지 정하는 값은?",opts:["Tiling","Metallic","Emission","Albedo"],ans:0,e:"Tiling으로 텍스처 반복 횟수를, Offset으로 시작 위치를 조절한다."},
+{d:"MAT",f:"mc",lvl:"下",q:"칼을 휘두를 때 궤적처럼 이동 경로를 따라 잔상을 그리는 컴포넌트는?",opts:["Trail Renderer","Mesh Filter","Rigidbody","Canvas"],ans:0,e:"Trail Renderer가 오브젝트 이동 경로를 따라 궤적을 그린다."},
+{d:"SVC",f:"mc",lvl:"上",q:"앱을 다시 배포하지 않고 서버에서 게임 밸런스 값을 바꾸는 서비스는?",opts:["Remote Config","Cloud Build","Ads","Analytics"],ans:0,e:"Remote Config로 원격에서 파라미터를 바꿔 재배포 없이 밸런스를 조정한다."},
+{d:"SVC",f:"mc",lvl:"中",q:"배포된 게임의 오류·크래시를 수집해 보고하는 Unity 서비스는?",opts:["Cloud Diagnostics","In-App Purchasing","NavMesh","Lightmap"],ans:0,e:"Cloud Diagnostics로 사용자 기기의 크래시·예외를 수집·분석한다."},
+{d:"GDES",f:"mc",lvl:"中",q:"게임이 진행될수록 도전이 점진적으로 어려워지도록 설계한 것은?",opts:["난이도 곡선(Difficulty Curve)","로딩 화면","세이브 슬롯","엔드 크레딧"],ans:0,e:"난이도 곡선은 학습·긴장·성취가 유지되도록 도전 강도를 점진적으로 조절한 설계다."},
+{d:"GDES",f:"mc",lvl:"中",q:"팀 기반으로 진영을 파괴하는 탑다운 대전 장르(예: LoL)는?",opts:["MOBA","FPS","비주얼 노벨","러너"],ans:0,e:"MOBA는 팀이 유닛·타워를 두고 상대 본진을 파괴하는 실시간 대전 장르다."},
+{d:"PMGT",f:"mc",lvl:"中",q:"2D에서 스프라이트가 겹칠 때 앞뒤로 그려지는 순서를 그룹으로 정하는 것은?",opts:["Sorting Layer","Physics Layer","Tag","Prefab"],ans:0,e:"Sorting Layer(및 Order in Layer)로 2D 렌더 순서를 제어한다."},
+{d:"PMGT",f:"mc",lvl:"中",q:"만든 씬을 빌드에 포함시키고 로드 순서를 등록하는 곳은?",opts:["Build Settings의 Scenes In Build","Inspector","Console","Package Manager"],ans:0,e:"File > Build Settings의 Scenes In Build에 씬을 등록해야 빌드에 포함·로드된다."},
+{d:"GART",f:"mc",lvl:"中",q:"실제 폴리곤을 늘리지 않고 표면의 요철·디테일을 표현하는 텍스처는?",opts:["Normal Map","Albedo Map","Light Map","Height Field"],ans:0,e:"Normal Map은 표면 법선을 흉내 내 적은 폴리곤으로도 굴곡 디테일을 표현한다."},
+{d:"GART",f:"mc",lvl:"上",q:"멀리 있는 모델을 자동으로 저폴리곤 버전으로 바꿔 성능을 아끼는 기법은?",opts:["LOD(Level of Detail)","Atlas","Baking","Culling Mask"],ans:0,e:"LOD Group으로 거리별로 디테일이 다른 모델을 전환해 렌더 부하를 줄인다."},
+{d:"NAV",f:"mc",lvl:"上",q:"런타임에 움직이는 상자처럼 NavMesh 위 동적 장애물을 실시간 회피하게 하는 컴포넌트는?",opts:["NavMesh Obstacle","Off-Mesh Link","Light Probe","Rigidbody"],ans:0,e:"NavMesh Obstacle은 carve로 실시간에 이동 영역을 파내 동적 장애물 회피를 만든다."},
+{d:"NAV",f:"mc",lvl:"中",q:"NavMesh Agent에게 목표 지점으로 이동하라고 지시하는 코드는?",opts:["agent.SetDestination(목표)","agent.Move()","agent.GoTo()","agent.Target()"],ans:0,e:"agent.SetDestination(목표위치)로 경로를 계산해 이동시킨다."},
+{d:"EMP",f:"mc",lvl:"下",q:"게임 취업 시 자신의 실력을 증명하는 가장 대표적인 자료는?",opts:["포트폴리오(작업물 모음)","주민등록증","성적표만","이력서 사진"],ans:0,e:"포트폴리오(완성·참여 작업물)로 실무 역량을 직접 보여주는 것이 핵심이다."},
+{d:"IND",f:"mc",lvl:"中",q:"게임을 만드는 '개발사'와 자금·마케팅·배급을 맡는 주체를 옳게 짝지은 것은?",opts:["개발=Developer, 배급=Publisher","둘 다 Publisher","둘 다 Developer","개발=Publisher, 배급=Developer"],ans:0,e:"Developer가 개발을, Publisher가 자금·마케팅·유통을 담당한다(겸하는 경우도 있음)."}
+];
+
+/* attach ids + qid(stable) + domain names + 난이도 */
+function qhash(str){let h=5381;for(let i=0;i<str.length;i++){h=((h<<5)+h+str.charCodeAt(i))|0;}return "q"+(h>>>0).toString(36);}
+function autoLvl(q){const t=q.q||"";
+  if(/하려면|할 때|어떻게 되는가|순간|겹쳐|사실적|자연스러운|적절한|건너|받게|줄이는|따로/.test(t)) return "上";
+  if(q.f==="match"||q.f==="order"||q.f==="hotspot") return "中";
+  if(/무엇인가|역할은|의미는|특징|아닌 것/.test(t)) return "下";
+  return "中";}
+Q.forEach((q,i)=>{q.id=i; q.dname=DOM[q.d]; if(!q.lvl)q.lvl=autoLvl(q); q.qid=qhash(q.q);});
+
+/* ---------- utils ---------- */
+const $=s=>document.querySelector(s);
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+/* ---------- state ---------- */
+let state=null;
+
+/* ---------- landing ---------- */
+const domChips=$("#domChips");
+Object.keys(DOM).forEach(code=>{
+  const n=Q.filter(q=>q.d===code).length;
+  const b=document.createElement("button");
+  b.className="chip";b.setAttribute("aria-pressed","false");b.dataset.code=code;
+  b.innerHTML=DOM[code]+"<small>"+n+"</small>";
+  b.onclick=()=>b.setAttribute("aria-pressed",b.getAttribute("aria-pressed")==="true"?"false":"true");
+  domChips.appendChild(b);
+});
+document.querySelectorAll(".mode-card").forEach(c=>{
+  c.onclick=()=>{
+    const m=c.dataset.mode;
+    $("#practiceOpts").classList.toggle("hidden",m!=="practice");
+    $("#examOpts").classList.toggle("hidden",m!=="exam");
+    document.querySelectorAll(".mode-card").forEach(x=>x.style.borderColor="");
+    c.style.borderColor="var(--accent)";
+  };
+});
+$("#allDom").onclick=()=>domChips.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed","true"));
+$("#clearDom").onclick=()=>domChips.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed","false"));
+let examLen=50;
+$("#examOpts").querySelectorAll(".chip").forEach(c=>{
+  c.onclick=()=>{$("#examOpts").querySelectorAll(".chip").forEach(x=>x.setAttribute("aria-pressed","false"));
+    c.setAttribute("aria-pressed","true");examLen=+c.dataset.len;};
+});
+document.querySelectorAll('#lvlChips .chip').forEach(function(c){c.onclick=function(){c.setAttribute("aria-pressed",c.getAttribute("aria-pressed")==="true"?"false":"true");};});
+$("#startPractice").onclick=()=>{
+  const sel=[...domChips.querySelectorAll('.chip[aria-pressed="true"]')].map(c=>c.dataset.code);
+  const lvls=[...document.querySelectorAll('#lvlChips .chip[aria-pressed="true"]')].map(c=>c.dataset.lvl);
+  let pool=sel.length?Q.filter(q=>sel.includes(q.d)):Q.slice();
+  if(lvls.length) pool=pool.filter(q=>lvls.includes(q.lvl));
+  if(!pool.length){alert("선택한 조건에 맞는 문항이 없습니다. 도메인·난이도를 조정하세요.");return;}
+  startQuiz(shuffle(pool),"practice");
+};
+function blueprintSample(n){
+  if(n>=Q.length) return shuffle(Q.slice());
+  const byd={}; Q.forEach(function(q){(byd[q.d]=byd[q.d]||[]).push(q);});
+  let out=[]; const total=Q.length;
+  Object.keys(byd).forEach(function(d){const k=Math.max(1,Math.round(byd[d].length*n/total));out=out.concat(shuffle(byd[d]).slice(0,k));});
+  out=shuffle(out);
+  return out.length>n?out.slice(0,n):out;
+}
+$("#startExam").onclick=()=>{
+  const pool=blueprintSample(Math.min(examLen,Q.length));
+  startQuiz(pool,"exam");
+};
+
+/* ---------- quiz flow ---------- */
+function startQuiz(list,mode){
+  state={list,mode,idx:0,answers:new Array(list.length).fill(null),correct:new Array(list.length).fill(false),
+    committed:false,start:Date.now(),tick:null};
+  $("#landing").classList.add("hidden");$("#dashboard").classList.add("hidden");$("#login").classList.add("hidden");$("#results").classList.add("hidden");$("#quiz").classList.remove("hidden");
+  if(mode==="exam"){state.tick=setInterval(updTimer,1000);updTimer();}else{$("#timer").textContent="";}
+  renderQ();
+}
+function updTimer(){const s=((Date.now()-state.start)/1000)|0;const m=(s/60|0).toString().padStart(2,"0");
+  $("#timer").textContent=m+":"+(s%60).toString().padStart(2,"0");}
+
+function renderQ(){
+  const q=state.list[state.idx];
+  state.committed=false;state.pick=null;
+  $("#qcount").textContent=(state.idx+1)+" / "+state.list.length;
+  $("#pfill").style.width=((state.idx)/state.list.length*100)+"%";
+  const p=$("#qpanel");
+  let html=`<div class="qmeta"><span class="badge fmt">${FMTLABEL[q.f]}</span><span class="badge dom">${q.dname}</span></div>`;
+  html+=`<div class="qtext">${q.q}</div>`;
+  if(q.f==="mc"){
+    state.mcOrder=shuffle(q.opts.map((t,i)=>({t,i})));
+    html+=state.mcOrder.map((o,vi)=>`<button class="opt" data-i="${o.i}"><span class="k">${String.fromCharCode(65+vi)}</span>${o.t}</button>`).join("");
+  } else if(q.f==="order"){
+    state.orderShuf=shuffle(q.items.map((t,i)=>({t,i})));
+    state.orderPick=[];
+    html+=`<div class="hint">정답 순서대로 항목을 차례로 탭하세요. (다시 탭하면 취소)</div><div class="order-src" id="orderSrc"></div>`;
+  } else if(q.f==="match"){
+    state.matchRight=shuffle(q.right.map((t,i)=>({t,i})));
+    state.matchPairs={};state.matchSelL=null;
+    html+=`<div class="hint">왼쪽 항목을 탭한 뒤 오른쪽 짝을 탭하세요.</div><div class="match-grid"><div class="match-col" id="mL"></div><div class="match-col" id="mR"></div></div>`;
+  } else if(q.f==="hotspot"){
+    html+=`<div class="hint">정답 영역을 클릭하세요.</div><div class="hs-wrap">${q.tmpl==="editor"?svgEditor():svgInspector()}</div>`;
+  }
+  html+=`<div id="fb"></div>`;
+  p.innerHTML=html;
+  wire(q);
+  $("#nextBtn").textContent=(state.idx===state.list.length-1)? (state.mode==="exam"?"제출":"결과 보기") : "확인";
+  $("#nextBtn").disabled=true;
+}
+
+function wire(q){
+  if(q.f==="mc"){
+    p_opts(()=>q);
+  } else if(q.f==="order"){
+    renderOrder(q);
+  } else if(q.f==="match"){
+    renderMatch(q);
+  } else if(q.f==="hotspot"){
+    document.querySelectorAll("#qpanel svg .hz").forEach(z=>{
+      z.onclick=()=>{if(state.committed)return;
+        document.querySelectorAll("#qpanel svg .hz").forEach(x=>x.classList.remove("sel"));
+        z.classList.add("sel");state.pick=z.dataset.r;$("#nextBtn").disabled=false;};
+    });
+  }
+}
+function p_opts(getQ){
+  document.querySelectorAll("#qpanel .opt").forEach(o=>{
+    o.onclick=()=>{if(state.committed)return;
+      document.querySelectorAll("#qpanel .opt").forEach(x=>x.classList.remove("sel"));
+      o.classList.add("sel");state.pick=+o.dataset.i;$("#nextBtn").disabled=false;};
+  });
+}
+function renderOrder(q){
+  const src=$("#orderSrc");src.innerHTML="";
+  state.orderShuf.forEach(o=>{
+    const d=document.createElement("div");d.className="order-item";d.dataset.i=o.i;
+    d.innerHTML=`<span class="num" style="display:none"></span><span>${o.t}</span>`;
+    d.onclick=()=>{if(state.committed)return;
+      const pos=state.orderPick.indexOf(o.i);
+      if(pos>=0){state.orderPick.splice(pos,1);}else{state.orderPick.push(o.i);}
+      refreshOrder();};
+    src.appendChild(d);
+  });
+  function refreshOrder(){
+    src.querySelectorAll(".order-item").forEach(d=>{
+      const i=+d.dataset.i;const pos=state.orderPick.indexOf(i);const num=d.querySelector(".num");
+      if(pos>=0){d.classList.add("placed");num.style.display="inline-block";num.textContent=pos+1;}
+      else{d.classList.remove("placed");num.style.display="none";}
+    });
+    $("#nextBtn").disabled=state.orderPick.length!==q.items.length;
+  }
+  state._refreshOrder=refreshOrder;
+}
+function renderMatch(q){
+  const L=$("#mL"),R=$("#mR");L.innerHTML="";R.innerHTML="";
+  q.left.forEach((t,li)=>{
+    const d=document.createElement("div");d.className="match-item";d.dataset.l=li;
+    d.innerHTML=`<span class="pairtag"></span>${t}`;
+    d.onclick=()=>{if(state.committed)return;
+      L.querySelectorAll(".match-item").forEach(x=>x.classList.remove("sel"));
+      d.classList.add("sel");state.matchSelL=li;};
+    L.appendChild(d);
+  });
+  state.matchRight.forEach(o=>{
+    const d=document.createElement("div");d.className="match-item";d.dataset.r=o.i;
+    d.innerHTML=`<span class="pairtag"></span>${o.t}`;
+    d.onclick=()=>{if(state.committed||state.matchSelL===null)return;
+      // remove existing pair to this right or from this left
+      for(const k in state.matchPairs){if(state.matchPairs[k]===o.i)delete state.matchPairs[k];}
+      state.matchPairs[state.matchSelL]=o.i;
+      state.matchSelL=null;refreshMatch();};
+    R.appendChild(d);
+  });
+  function refreshMatch(){
+    const letters={};let c=0;
+    Object.keys(state.matchPairs).forEach(l=>{letters[l]=String.fromCharCode(97+ (c++));});
+    L.querySelectorAll(".match-item").forEach(d=>{const l=d.dataset.l;d.classList.remove("sel");
+      const has=state.matchPairs[l]!==undefined;d.classList.toggle("done",has);
+      d.querySelector(".pairtag").textContent=has?("→"+ (Object.keys(state.matchPairs).indexOf(l)+1)):"";});
+    R.querySelectorAll(".match-item").forEach(d=>{const r=+d.dataset.r;
+      let idx=-1,n=0;Object.keys(state.matchPairs).forEach((l,k)=>{if(state.matchPairs[l]===r)idx=k;});
+      d.classList.toggle("done",idx>=0);d.querySelector(".pairtag").textContent=idx>=0?(idx+1):"";});
+    $("#nextBtn").disabled=Object.keys(state.matchPairs).length!==q.left.length;
+  }
+  state._refreshMatch=refreshMatch;
+}
+
+/* ---------- commit / grade ---------- */
+$("#nextBtn").onclick=()=>{
+  const q=state.list[state.idx];
+  if(!state.committed){
+    const ok=grade(q);
+    state.correct[state.idx]=ok;state.answers[state.idx]=captureAnswer(q);
+    if(state.mode==="practice"){
+      state.committed=true;showFeedback(q,ok);
+      $("#nextBtn").textContent=(state.idx===state.list.length-1)?"결과 보기":"다음";
+      return;
+    }
+  }
+  // advance
+  if(state.idx===state.list.length-1){finish();}
+  else{state.idx++;renderQ();}
+};
+function grade(q){
+  if(q.f==="mc")return state.pick===q.ans;
+  if(q.f==="hotspot")return state.pick===q.ans;
+  if(q.f==="order")return JSON.stringify(state.orderPick)===JSON.stringify(q.items.map((_,i)=>i));
+  if(q.f==="match")return q.left.every((_,li)=>state.matchPairs[li]===li);
+  return false;
+}
+function captureAnswer(q){
+  if(q.f==="mc")return state.pick;
+  if(q.f==="hotspot")return state.pick;
+  if(q.f==="order")return state.orderPick.slice();
+  if(q.f==="match")return Object.assign({},state.matchPairs);
+  return null;
+}
+function showFeedback(q,ok){
+  // paint
+  if(q.f==="mc"){document.querySelectorAll("#qpanel .opt").forEach(o=>{const i=+o.dataset.i;
+    if(i===q.ans)o.classList.add("correct");else if(i===state.pick)o.classList.add("wrong");});}
+  if(q.f==="hotspot"){document.querySelectorAll("#qpanel svg .hz").forEach(z=>{
+    if(z.dataset.r===q.ans)z.classList.add("correct");else if(z.dataset.r===state.pick)z.classList.add("wrong");});}
+  if(q.f==="order"){$("#qpanel").querySelectorAll(".order-item").forEach(d=>{const i=+d.dataset.i;
+    const pos=state.orderPick.indexOf(i);d.classList.add(pos===i?"correct":"wrong");});}
+  if(q.f==="match"){const L=$("#mL");L&&L.querySelectorAll(".match-item").forEach(d=>{const li=+d.dataset.l;
+    d.classList.add(state.matchPairs[li]===li?"correct":"wrong");});}
+  const fb=$("#fb");
+  let ans=correctText(q);
+  fb.innerHTML=`<div class="fb ${ok?"ok":"no"}"><b>${ok?"정답":"오답"}</b>${ok?"":` · 정답: ${ans}`}<span class="exp">${q.e}</span></div>`;
+}
+function correctText(q){
+  if(q.f==="mc")return q.opts[q.ans];
+  if(q.f==="hotspot")return q.ans;
+  if(q.f==="order")return q.items.join(" → ");
+  if(q.f==="match")return q.left.map((l,i)=>l+"↔"+q.right[i]).join(" · ");
+  return "";
+}
+
+/* ---------- finish / results ---------- */
+function finish(){if(state.tick)clearInterval(state.tick);renderResults();submitSession();}
+function renderResults(){
+  $("#quiz").classList.add("hidden");$("#results").classList.remove("hidden");
+  const total=state.list.length,got=state.correct.filter(Boolean).length;
+  const pct=Math.round(got/total*100);
+  $("#scoreNum").innerHTML=got+`<small>/${total}</small>`;
+  let v=pct>=90?"실전 응시 준비 완료 ✓":pct>=70?"오답 도메인만 보강 후 응시":pct>=50?"핵심 도메인 재학습 권장":"기초 개념부터 다시";
+  $("#verdict").textContent=`정답률 ${pct}% · ${v}`;
+  $("#verdict").style.color=pct>=90?"var(--correct)":pct>=70?"var(--amber)":"var(--wrong)";
+  // domain breakdown
+  const byDom={};
+  state.list.forEach((q,i)=>{(byDom[q.d]=byDom[q.d]||{n:0,c:0});byDom[q.d].n++;if(state.correct[i])byDom[q.d].c++;});
+  const db=$("#dbreak");db.innerHTML="";
+  Object.keys(byDom).sort((a,b)=>(byDom[a].c/byDom[a].n)-(byDom[b].c/byDom[b].n)).forEach(code=>{
+    const o=byDom[code],r=Math.round(o.c/o.n*100);
+    const col=r>=80?"var(--correct)":r>=50?"var(--amber)":"var(--wrong)";
+    const row=document.createElement("div");row.className="dbrow";
+    row.innerHTML=`<span class="dn">${DOM[code]}</span><div class="dbar"><i style="width:${r}%;background:${col}"></i></div><span class="dp">${o.c}/${o.n}</span>`;
+    db.appendChild(row);
+  });
+  // review wrong
+  const rv=$("#review");rv.innerHTML="";
+  const wrong=state.list.map((q,i)=>({q,i})).filter(x=>!state.correct[x.i]);
+  if(!wrong.length){rv.innerHTML=`<div class="panel" style="color:var(--correct)">틀린 문항이 없습니다. 완벽합니다.</div>`;}
+  wrong.forEach(({q})=>{
+    const d=document.createElement("div");d.className="review-item";
+    d.innerHTML=`<div class="rq"><span class="badge fmt" style="margin-right:6px">${FMTLABEL[q.f]}</span>${q.q}</div>
+      <div class="ra"><span class="g">정답: ${correctText(q)}</span><br><span style="color:var(--faint)">${q.e}</span></div>`;
+    rv.appendChild(d);
+  });
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+$("#retry").onclick=()=>startQuiz(shuffle(state.list.slice()),state.mode);
+$("#home").onclick=()=>{$("#results").classList.add("hidden");$("#landing").classList.remove("hidden");window.scrollTo({top:0});};
+$("#quitBtn").onclick=()=>{if(state.tick)clearInterval(state.tick);$("#quiz").classList.add("hidden");$("#landing").classList.remove("hidden");window.scrollTo({top:0});};
+
+/* ==================== v2: 개인화 · 서버 연동 ==================== */
+const CONFIG = { SYNC_URL: "" }; /* ← Apps Script 웹앱 URL 붙여넣기 (비우면 로컬 저장만) */
+
+let USER = null; /* {sid,name,team} */
+
+function blankStu(name,team){return {sid:"",name:name||"",team:team||"",sessions:[],domAgg:{},totalSessions:0,totalQ:0,totalC:0,lastSeen:""};}
+
+/* ---- 로컬 미러 (오프라인/미배포 대비) ---- */
+function lKey(sid){return "uca_stu_"+sid;}
+function localGet(sid){try{return JSON.parse(localStorage.getItem(lKey(sid)))||null;}catch(e){return null;}}
+function localSave(stu){localStorage.setItem(lKey(stu.sid||USER.sid),JSON.stringify(stu));}
+function mergeLocal(payload){
+  const sid=payload.sid;
+  let s=localGet(sid)||blankStu(payload.name,payload.team);
+  s.sid=sid; if(payload.name)s.name=payload.name; if(payload.team!==undefined)s.team=payload.team;
+  const ss=payload.session||{};
+  s.sessions=s.sessions||[];
+  s.sessions.push({t:new Date().toISOString(),mode:ss.mode,total:ss.total,got:ss.got,pct:ss.pct});
+  if(s.sessions.length>30)s.sessions=s.sessions.slice(-30);
+  s.domAgg=s.domAgg||{};
+  Object.keys(ss.byDom||{}).forEach(function(d){s.domAgg[d]=s.domAgg[d]||{n:0,c:0};s.domAgg[d].n+=ss.byDom[d].n;s.domAgg[d].c+=ss.byDom[d].c;});
+  s.totalSessions=(s.totalSessions||0)+1; s.totalQ=(s.totalQ||0)+(ss.total||0); s.totalC=(s.totalC||0)+(ss.got||0);
+  s.weakQ=s.weakQ||[];
+  (ss.wq||[]).forEach(function(q){ if(s.weakQ.indexOf(q)<0)s.weakQ.push(q); });
+  (ss.rq||[]).forEach(function(q){ var i=s.weakQ.indexOf(q); if(i>=0)s.weakQ.splice(i,1); });
+  s.lastSeen=new Date().toISOString();
+  localSave(s);
+  const roster=JSON.parse(localStorage.getItem("uca_roster")||"{}"); roster[sid]=1;
+  localStorage.setItem("uca_roster",JSON.stringify(roster));
+  return s;
+}
+function localBoard(){
+  const roster=JSON.parse(localStorage.getItem("uca_roster")||"{}");
+  const players=[],teams={};
+  Object.keys(roster).forEach(function(sid){const s=localGet(sid);if(!s)return;
+    const pct=s.totalQ?Math.round(s.totalC/s.totalQ*100):0;
+    players.push({sid:sid,name:s.name||sid,team:s.team||"-",totalQ:s.totalQ||0,totalC:s.totalC||0,pct:pct,sessions:s.totalSessions||0});
+    const tk=s.team||"-"; teams[tk]=teams[tk]||{team:tk,totalQ:0,totalC:0,members:0};
+    teams[tk].totalQ+=s.totalQ||0; teams[tk].totalC+=s.totalC||0; teams[tk].members++;});
+  players.sort(function(a,b){return b.pct-a.pct||b.totalC-a.totalC;});
+  const teamArr=Object.keys(teams).map(function(k){const t=teams[k];t.pct=t.totalQ?Math.round(t.totalC/t.totalQ*100):0;return t;}).sort(function(a,b){return b.pct-a.pct||b.totalC-a.totalC;});
+  return {players:players,teams:teamArr};
+}
+
+/* ---- 서버 API (실패 시 로컬 폴백) ---- */
+function jsonp(params){
+  return new Promise(function(resolve){
+    if(!CONFIG.SYNC_URL){ resolve(null); return; }
+    var fn="__jcb"+Math.random().toString(36).slice(2);
+    var sc=document.createElement("script"); var done=false;
+    var cleanup=function(){ try{delete window[fn];}catch(e){} if(sc.parentNode)sc.parentNode.removeChild(sc); };
+    window[fn]=function(data){ if(done)return; done=true; resolve(data); cleanup(); };
+    sc.onerror=function(){ if(done)return; done=true; resolve(null); cleanup(); };
+    var qs=Object.keys(params).map(function(k){return encodeURIComponent(k)+"="+encodeURIComponent(params[k]);}).join("&");
+    sc.src=CONFIG.SYNC_URL+"?"+qs+"&callback="+fn;
+    document.body.appendChild(sc);
+    setTimeout(function(){ if(!done){ done=true; resolve(null); cleanup(); } },12000);
+  });
+}
+async function apiMe(sid){
+  if(!CONFIG.SYNC_URL) return localGet(sid);
+  const j=await jsonp({action:"me",sid:sid});
+  return (j&&j.student)||localGet(sid);
+}
+async function apiSubmit(payload){
+  mergeLocal(payload); /* 항상 로컬 미러 갱신 */
+  if(!CONFIG.SYNC_URL) return;
+  await jsonp({action:"submit",payload:JSON.stringify(payload)});
+}
+async function apiBoard(){
+  if(!CONFIG.SYNC_URL) return localBoard();
+  const j=await jsonp({action:"board"});
+  return (j&&j.board)||localBoard();
+}
+
+/* ---- 로그인 ---- */
+function doLogin(){
+  const sid=$("#inSid").value.trim(), name=$("#inName").value.trim(), team=$("#inTeam").value;
+  if(!sid||!name){$("#loginMsg").textContent="학번과 이름을 입력하세요.";return;}
+  USER={sid:sid,name:name,team:team};
+  localStorage.setItem("uca_user",JSON.stringify(USER));
+  enterDashboard();
+}
+$("#loginBtn").onclick=doLogin;
+$("#inName").addEventListener("keydown",function(e){if(e.key==="Enter")doLogin();});
+$("#logout").onclick=function(){localStorage.removeItem("uca_user");USER=null;location.reload();};
+
+/* ---- 대시보드 ---- */
+async function enterDashboard(){
+  $("#login").classList.add("hidden");
+  $("#quiz").classList.add("hidden");
+  $("#results").classList.add("hidden");
+  $("#landing").classList.add("hidden");
+  $("#userbar").classList.remove("hidden");
+  $("#ubName").textContent=USER.name+" ("+USER.sid+")"+(USER.team?" · "+USER.team:"");
+  $("#dashboard").classList.remove("hidden");
+  const stu=await apiMe(USER.sid);
+  if(stu){stu.sid=USER.sid; localSave(stu);}
+  renderDashboard(stu||localGet(USER.sid));
+  renderBoard();
+  window.scrollTo({top:0});
+}
+function renderDashboard(stu){
+  const st=$("#dashStats"), weak=$("#dashWeak");
+  if(!stu||!(stu.totalSessions>0)){
+    st.innerHTML='<div class="muted-box" style="grid-column:1/-1">아직 응시 기록이 없어요. 첫 세트를 풀어보세요.</div>';
+    weak.innerHTML=""; $("#weakBtn").classList.add("hidden"); $("#reviewBtn").classList.add("hidden"); window._weakTargets=[]; window._weakQ=[]; return;
+  }
+  const pct=stu.totalQ?Math.round(stu.totalC/stu.totalQ*100):0;
+  st.innerHTML=
+    '<div class="stat"><div class="statn">'+stu.totalSessions+'</div><div class="statl">응시 세트</div></div>'+
+    '<div class="stat"><div class="statn">'+stu.totalC+'/'+stu.totalQ+'</div><div class="statl">누적 정답</div></div>'+
+    '<div class="stat"><div class="statn">'+pct+'%</div><div class="statl">누적 정답률</div></div>';
+  const rows=Object.keys(stu.domAgg||{}).map(function(d){const o=stu.domAgg[d];return {d:d,n:o.n,c:o.c,r:o.n?o.c/o.n:0};})
+    .filter(function(x){return x.n>0;}).sort(function(a,b){return a.r-b.r;});
+  weak.innerHTML=rows.map(function(x){const r=Math.round(x.r*100);
+    const col=r>=80?"var(--correct)":r>=50?"var(--amber)":"var(--wrong)";
+    var note=x.n<4?' <small style="color:var(--faint)">·표본적음</small>':'';
+    return '<div class="dbrow"><span class="dn">'+DOM[x.d]+note+'</span><div class="dbar"><i style="width:'+r+'%;background:'+col+'"></i></div><span class="dp">'+x.c+'/'+x.n+'</span></div>';
+  }).join("");
+  window._weakTargets=rows.slice(0,3).map(function(x){return x.d;});
+  $("#weakBtn").classList.toggle("hidden", window._weakTargets.length===0);
+  window._weakQ=(stu.weakQ||[]).slice();
+  var revCount=Q.filter(function(q){return window._weakQ.indexOf(q.qid)>=0;}).length;
+  var rb=$("#reviewBtn"); rb.classList.toggle("hidden", revCount===0);
+  if(revCount) rb.textContent="틀린 문제만 복습 ("+revCount+")";
+}
+$("#goPractice").onclick=function(){$("#dashboard").classList.add("hidden");$("#landing").classList.remove("hidden");window.scrollTo({top:0});};
+$("#weakBtn").onclick=function(){
+  const t=window._weakTargets||[]; if(!t.length)return;
+  const pool=Q.filter(function(q){return t.includes(q.d);});
+  startQuiz(shuffle(pool),"practice");
+};
+$("#reviewBtn").onclick=function(){
+  const w=window._weakQ||[]; if(!w.length)return;
+  const pool=Q.filter(function(q){return w.indexOf(q.qid)>=0;});
+  if(!pool.length)return;
+  startQuiz(shuffle(pool),"practice");
+};
+
+/* ---- 리더보드 ---- */
+async function renderBoard(){
+  const b=await apiBoard(); const el=$("#boardBody");
+  if(!b||!b.players||!b.players.length){el.innerHTML='<div class="muted-box">아직 리더보드 데이터가 없어요. 첫 세트를 풀면 등록됩니다.</div>';return;}
+  const teamRows=(b.teams||[]).filter(function(t){return t.team!=="-";}).map(function(t,i){
+    return '<div class="lb-row"><span class="lb-rank">'+(i+1)+'</span><span class="lb-name">'+t.team+' <small>('+t.members+'명)</small></span><span class="lb-pct">'+t.pct+'%</span></div>';}).join("");
+  const playerRows=b.players.slice(0,10).map(function(p,i){const me=(USER&&p.sid===USER.sid)?" me":"";
+    return '<div class="lb-row'+me+'"><span class="lb-rank">'+(i+1)+'</span><span class="lb-name">'+p.name+' <small>'+p.team+'</small></span><span class="lb-pct">'+p.pct+'%</span></div>';}).join("");
+  el.innerHTML=(teamRows?('<div class="lb-sec">조별 순위</div>'+teamRows):'')+'<div class="lb-sec">개인 TOP 10</div>'+playerRows;
+}
+
+/* ---- 세션 제출 (finish에서 호출) ---- */
+function submitSession(){
+  if(!USER||!state) return;
+  const total=state.list.length, got=state.correct.filter(Boolean).length;
+  const pct=total?Math.round(got/total*100):0;
+  const byDom={}, wq=[], rq=[];
+  state.list.forEach(function(q,i){byDom[q.d]=byDom[q.d]||{n:0,c:0};byDom[q.d].n++;
+    if(state.correct[i]){byDom[q.d].c++; rq.push(q.qid);} else { wq.push(q.qid); }});
+  apiSubmit({sid:USER.sid,name:USER.name,team:USER.team,session:{mode:state.mode,total:total,got:got,pct:pct,byDom:byDom,wq:wq,rq:rq}});
+}
+
+/* ---- 결과 화면의 홈/그만두기 → 대시보드로 ---- */
+$("#home").onclick=function(){$("#results").classList.add("hidden");enterDashboard();};
+$("#quitBtn").onclick=function(){if(state&&state.tick)clearInterval(state.tick);$("#quiz").classList.add("hidden");enterDashboard();};
+
+/* ---- 자동 로그인 ---- */
+(function(){try{const u=JSON.parse(localStorage.getItem("uca_user"));if(u&&u.sid){USER=u;enterDashboard();}}catch(e){}})();
+</script>

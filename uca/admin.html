@@ -1,0 +1,278 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UCA 교수 대시보드 · 학생 성적 현황</title>
+<style>
+  :root{
+    --bg:#0e1017;--surface:#171a24;--surface2:#1e2230;--surface3:#252a3a;
+    --line:#2a2f40;--text:#e6e8ef;--muted:#8b90a3;--faint:#5a6072;
+    --accent:#3dd7d0;--accent-dim:#1c5f5c;--amber:#f2b544;--correct:#4ade80;--wrong:#f87171;
+    --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic","Segoe UI",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto;padding:28px 18px 80px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent)}
+  h1{font-family:var(--mono);font-weight:600;font-size:clamp(22px,5vw,30px);margin:.3em 0 .1em}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:22px}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:18px}
+  .section-label{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin:22px 0 10px}
+  button.btn{font-family:var(--sans);font-size:14px;font-weight:600;padding:11px 18px;border-radius:10px;border:1px solid var(--accent);background:var(--accent);color:#06201f;cursor:pointer}
+  button.btn.ghost{background:transparent;color:var(--accent)}
+  button.btn.mini{padding:7px 12px;font-size:12.5px;font-weight:500;border-color:var(--line);color:var(--muted);background:var(--surface2)}
+  input{font-family:var(--sans);font-size:15px;padding:11px 13px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);color:var(--text)}
+  input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+  .hint{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:8px}
+  /* login */
+  #gate{min-height:calc(100vh - 116px);display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}
+  #gate .panel{max-width:400px;width:100%}
+  /* summary cards */
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  @media(max-width:560px){.cards{grid-template-columns:1fr}}
+  .card{background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center}
+  .card .n{font-family:var(--mono);font-size:28px;font-weight:700;color:var(--accent)}
+  .card .l{font-size:12px;color:var(--muted);margin-top:2px}
+  /* bars */
+  .dbrow{display:grid;grid-template-columns:150px 1fr 54px;align-items:center;gap:10px;font-size:12.5px;margin-bottom:9px}
+  .dbrow .dn{font-family:var(--mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dbar{height:8px;background:var(--surface2);border-radius:999px;overflow:hidden}
+  .dbar>i{display:block;height:100%;border-radius:999px}
+  .dbrow .dp{font-family:var(--mono);text-align:right;color:var(--muted)}
+  /* table */
+  .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .toolbar input{flex:1;min-width:180px}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
+  th{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);cursor:pointer;user-select:none}
+  th:hover{color:var(--text)}
+  td.num,th.num{text-align:right;font-family:var(--mono)}
+  tbody tr{cursor:pointer}
+  tbody tr:hover{background:var(--surface2)}
+  .pct-pill{font-family:var(--mono);padding:2px 8px;border-radius:999px;font-size:12px}
+  .hidden{display:none!important}
+  .detail-dom{margin-top:6px}
+  .muted-box{color:var(--muted);font-size:14px;padding:6px 2px}
+  .updated{font-family:var(--mono);font-size:11px;color:var(--faint);text-align:right;margin-top:6px}
+</style>
+
+<div class="wrap">
+  <!-- ===== 비밀번호 게이트 ===== -->
+  <div id="gate">
+    <div class="eyebrow">Unity Certified Associate · Instructor</div>
+    <h1>교수 대시보드</h1>
+    <div class="sub">전체 학생·조별·도메인별 성적을 한 화면에서 봅니다.</div>
+    <div class="panel">
+      <input id="pw" type="password" placeholder="관리자 비밀번호" style="width:100%;margin-bottom:12px">
+      <div><button class="btn" id="enterBtn" style="width:100%">열기</button></div>
+      <div class="hint" id="gateMsg" style="color:var(--wrong)"></div>
+      <div class="hint" id="gateMode"></div>
+    </div>
+  </div>
+
+  <!-- ===== 대시보드 ===== -->
+  <div id="board" class="hidden">
+    <div class="eyebrow">Unity Certified Associate · Instructor</div>
+    <h1>교수 대시보드</h1>
+    <div class="sub">학생들이 문제를 풀수록 아래 수치가 갱신됩니다. <button class="btn ghost mini" id="refreshBtn">새로고침</button></div>
+
+    <div class="panel">
+      <div class="cards" id="cards"></div>
+    </div>
+
+    <div class="section-label">반 전체 약점 도메인 (정답률 낮은 순 — 다시 가르칠 우선순위)</div>
+    <div class="panel"><div id="classDom"></div></div>
+
+    <div class="section-label">조별 순위</div>
+    <div class="panel"><div id="teams"></div></div>
+
+    <div class="section-label">학생별 성적</div>
+    <div class="panel">
+      <div class="toolbar">
+        <input id="search" placeholder="학번·이름·조 검색">
+        <button class="btn ghost mini" id="csvBtn">CSV 내보내기</button>
+      </div>
+      <table>
+        <thead><tr>
+          <th data-k="rank" class="num">#</th>
+          <th data-k="sid">학번</th>
+          <th data-k="name">이름</th>
+          <th data-k="team">조</th>
+          <th data-k="sessions" class="num">세트</th>
+          <th data-k="pct" class="num">정답률</th>
+          <th data-k="lastSeen">최근</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div id="empty" class="muted-box hidden">표시할 학생 기록이 없습니다.</div>
+      <div class="updated" id="updated"></div>
+    </div>
+
+    <!-- 학생 상세 -->
+    <div id="detail" class="panel hidden">
+      <div class="section-label" style="margin-top:0">학생 상세</div>
+      <div id="detailHead" style="font-size:15px;font-weight:600;margin-bottom:10px"></div>
+      <div id="detailDom"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CONFIG = { SYNC_URL: "" }; /* ← 학생 페이지와 동일한 Apps Script URL 붙여넣기 (비우면 이 브라우저 로컬 데이터로 미리보기) */
+
+const DOM = {EDITOR:"Editor Interface",PROG:"Programming",PHYS:"Physics",ANIM:"Animation",
+  ASSET:"Asset Management",UI:"User Interface",LIGHT:"Lighting",AUDIO:"Audio",
+  MAT:"Materials & Effects",SVC:"Services",GDES:"Game Design",PMGT:"Project Mgmt",
+  GART:"Game Art",NAV:"Navigation",EMP:"Employment",IND:"Industry"};
+
+const $ = s => document.querySelector(s);
+let DATA = null, sortKey = "pct", sortDir = -1;
+
+function pctColor(r){ return r>=80?"var(--correct)":r>=50?"var(--amber)":"var(--wrong)"; }
+
+/* ---- 게이트 ---- */
+if(!CONFIG.SYNC_URL){ $("#gateMode").textContent = "서버 미연결 — 이 브라우저의 로컬 데이터로 미리보기 모드"; }
+$("#enterBtn").onclick = enter;
+$("#pw").addEventListener("keydown", e => { if(e.key==="Enter") enter(); });
+
+async function enter(){
+  $("#gateMsg").textContent = "";
+  try{
+    DATA = await loadAdmin($("#pw").value.trim());
+  }catch(err){
+    $("#gateMsg").textContent = "비밀번호가 틀렸거나 서버에 연결할 수 없습니다.";
+    return;
+  }
+  $("#gate").classList.add("hidden");
+  $("#board").classList.remove("hidden");
+  renderAll();
+}
+
+function jsonp(params){
+  return new Promise(function(resolve){
+    if(!CONFIG.SYNC_URL){ resolve(null); return; }
+    var fn="__jcb"+Math.random().toString(36).slice(2);
+    var sc=document.createElement("script"); var done=false;
+    var cleanup=function(){ try{delete window[fn];}catch(e){} if(sc.parentNode)sc.parentNode.removeChild(sc); };
+    window[fn]=function(data){ if(done)return; done=true; resolve(data); cleanup(); };
+    sc.onerror=function(){ if(done)return; done=true; resolve(null); cleanup(); };
+    var qs=Object.keys(params).map(function(k){return encodeURIComponent(k)+"="+encodeURIComponent(params[k]);}).join("&");
+    sc.src=CONFIG.SYNC_URL+"?"+qs+"&callback="+fn;
+    document.body.appendChild(sc);
+    setTimeout(function(){ if(!done){ done=true; resolve(null); cleanup(); } },12000);
+  });
+}
+async function loadAdmin(key){
+  if(!CONFIG.SYNC_URL) return localAdmin();
+  const j = await jsonp({action:"admin", key:key});
+  if(!j || j.status !== "ok") throw new Error((j&&j.message) || "unauthorized");
+  return j.data;
+}
+
+/* 서버 미연결 시: 이 브라우저 localStorage에서 재구성 (미리보기) */
+function localAdmin(){
+  const roster = JSON.parse(localStorage.getItem("uca_roster") || "{}");
+  const students = [], teams = {}, classDom = {};
+  Object.keys(roster).forEach(sid => {
+    const s = JSON.parse(localStorage.getItem("uca_stu_" + sid) || "null"); if(!s) return;
+    const q = s.totalQ||0, c = s.totalC||0, pct = q?Math.round(c/q*100):0;
+    students.push({sid, name:s.name||sid, team:s.team||"-", sessions:s.totalSessions||0,
+      totalQ:q, totalC:c, pct, lastSeen:s.lastSeen||"", domAgg:s.domAgg||{}});
+    const tk = s.team||"-"; teams[tk] = teams[tk]||{team:tk,totalQ:0,totalC:0,members:0};
+    teams[tk].totalQ+=q; teams[tk].totalC+=c; teams[tk].members++;
+    Object.keys(s.domAgg||{}).forEach(dd => {classDom[dd]=classDom[dd]||{n:0,c:0};classDom[dd].n+=s.domAgg[dd].n;classDom[dd].c+=s.domAgg[dd].c;});
+  });
+  students.sort((a,b)=>b.pct-a.pct||b.totalC-a.totalC);
+  const teamArr = Object.keys(teams).map(k=>{const t=teams[k];t.pct=t.totalQ?Math.round(t.totalC/t.totalQ*100):0;return t;}).sort((a,b)=>b.pct-a.pct);
+  return {students, teams:teamArr, classDom, count:students.length, updated:new Date().toISOString()};
+}
+
+/* ---- 렌더 ---- */
+function renderAll(){
+  const d = DATA;
+  const totalSets = d.students.reduce((a,s)=>a+(s.sessions||0),0);
+  const totQ = d.students.reduce((a,s)=>a+(s.totalQ||0),0);
+  const totC = d.students.reduce((a,s)=>a+(s.totalC||0),0);
+  const avg = totQ ? Math.round(totC/totQ*100) : 0;
+  $("#cards").innerHTML =
+    card(d.count, "응시 학생") + card(totalSets, "총 응시 세트") + card(avg+"%", "반 평균 정답률");
+
+  // class weakness
+  const cd = d.classDom || {};
+  const rows = Object.keys(cd).map(k=>{const o=cd[k];return {k,n:o.n,c:o.c,r:o.n?o.c/o.n:0};})
+    .filter(x=>x.n>0).sort((a,b)=>a.r-b.r);
+  $("#classDom").innerHTML = rows.length ? rows.map(x=>bar(DOM[x.k]||x.k, x.c, x.n)).join("")
+    : '<div class="muted-box">아직 도메인 데이터가 없습니다.</div>';
+
+  // teams
+  const tArr = (d.teams||[]).filter(t=>t.team!=="-");
+  $("#teams").innerHTML = tArr.length ? tArr.map((t,i)=>
+    `<div class="dbrow"><span class="dn">${i+1}. ${t.team} <small style="color:var(--faint)">(${t.members}명)</small></span>`+
+    `<div class="dbar"><i style="width:${t.pct}%;background:${pctColor(t.pct)}"></i></div>`+
+    `<span class="dp">${t.pct}%</span></div>`).join("")
+    : '<div class="muted-box">조 배정된 학생이 없습니다.</div>';
+
+  renderRows();
+  $("#updated").textContent = "갱신: " + fmtTime(d.updated);
+}
+function card(n,l){ return `<div class="card"><div class="n">${n}</div><div class="l">${l}</div></div>`; }
+function bar(name,c,n){ const r=Math.round(c/n*100);
+  return `<div class="dbrow"><span class="dn">${name}</span><div class="dbar"><i style="width:${r}%;background:${pctColor(r)}"></i></div><span class="dp">${c}/${n}</span></div>`; }
+
+function renderRows(){
+  const q = ($("#search").value||"").trim().toLowerCase();
+  let list = DATA.students.slice();
+  if(q) list = list.filter(s => (s.sid+" "+s.name+" "+s.team).toLowerCase().includes(q));
+  list.sort((a,b)=>{
+    let va=a[sortKey], vb=b[sortKey];
+    if(sortKey==="rank"){ va=a.pct; vb=b.pct; }
+    if(typeof va==="string") return sortDir*va.localeCompare(vb);
+    return sortDir*((va||0)-(vb||0));
+  });
+  const tb = $("#rows"); tb.innerHTML="";
+  $("#empty").classList.toggle("hidden", list.length>0);
+  list.forEach((s,i)=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      `<td class="num">${i+1}</td><td>${s.sid}</td><td>${s.name}</td><td>${s.team}</td>`+
+      `<td class="num">${s.sessions}</td>`+
+      `<td class="num"><span class="pct-pill" style="background:${pctColor(s.pct)}22;color:${pctColor(s.pct)}">${s.pct}%</span></td>`+
+      `<td style="color:var(--faint);font-size:12px">${fmtTime(s.lastSeen)}</td>`;
+    tr.onclick = ()=>showDetail(s);
+    tb.appendChild(tr);
+  });
+}
+
+function showDetail(s){
+  $("#detail").classList.remove("hidden");
+  $("#detailHead").textContent = `${s.name} · ${s.sid}${s.team&&s.team!=="-"?" · "+s.team:""}  (누적 ${s.totalC}/${s.totalQ}, ${s.pct}%)`;
+  const rows = Object.keys(s.domAgg||{}).map(k=>{const o=s.domAgg[k];return {k,n:o.n,c:o.c,r:o.n?o.c/o.n:0};})
+    .filter(x=>x.n>0).sort((a,b)=>a.r-b.r);
+  $("#detailDom").innerHTML = rows.length ? rows.map(x=>bar(DOM[x.k]||x.k, x.c, x.n)).join("")
+    : '<div class="muted-box">응시 기록이 없습니다.</div>';
+  try{ $("#detail").scrollIntoView({behavior:"smooth",block:"nearest"}); }catch(e){}
+}
+
+function fmtTime(iso){ if(!iso) return "-"; const d=new Date(iso); if(isNaN(d)) return "-";
+  const p=n=>String(n).padStart(2,"0"); return `${d.getMonth()+1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`; }
+
+/* CSV */
+function toCSV(){
+  const head = ["순위","학번","이름","조","세트","정답","시도","정답률(%)","최근"];
+  const lines = [head.join(",")];
+  DATA.students.forEach((s,i)=>{ lines.push([i+1,s.sid,s.name,s.team,s.sessions,s.totalC,s.totalQ,s.pct,fmtTime(s.lastSeen)].join(",")); });
+  return "﻿" + lines.join("\n");
+}
+$("#csvBtn").onclick = ()=>{
+  const blob = new Blob([toCSV()], {type:"text/csv;charset=utf-8"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = "UCA_성적_" + new Date().toISOString().slice(0,10) + ".csv"; a.click();
+};
+
+/* events */
+$("#search").addEventListener("input", renderRows);
+$("#refreshBtn").onclick = async ()=>{ try{ DATA = await loadAdmin($("#pw").value.trim()); renderAll(); }catch(e){} };
+document.querySelectorAll("th[data-k]").forEach(th=>{
+  th.onclick = ()=>{ const k=th.dataset.k; if(sortKey===k) sortDir*=-1; else {sortKey=k; sortDir=(k==="sid"||k==="name"||k==="team")?1:-1;} renderRows(); };
+});
+</script>
