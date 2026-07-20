@@ -169,6 +169,20 @@ function handle(p){
     return {status:'ok', data: adminData(readDB())};
   }
 
+  if (action === 'studentDelete'){     /* 학생 계정 삭제 (오입력 정리용) */
+    if (String(p.key) !== String(ADMIN_KEY)) return {status:'error', message:'unauthorized'};
+    const db = readDB();
+    const sid = String(p.sid || '').trim();
+    if (!sid) return {status:'error', message:'no sid'};
+    if (db.students && db.students[sid]) delete db.students[sid];
+    Object.keys(db.rounds || {}).forEach(function(id){
+      const r = db.rounds[id];
+      if (r.responses && r.responses[sid]) delete r.responses[sid];
+    });
+    saveDB(db);
+    return {status:'ok'};
+  }
+
   if (action === 'submit'){
     let payload;
     try { payload = JSON.parse(p.payload || '{}'); }

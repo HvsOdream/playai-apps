@@ -98,6 +98,7 @@
           <th data-k="examPct" class="num">시험%</th>
           <th data-k="sessions" class="num">세트</th>
           <th data-k="lastSeen">최근</th>
+          <th></th>
         </tr></thead>
         <tbody id="rows"></tbody>
       </table>
@@ -113,7 +114,7 @@
         <button class="btn mini" id="rCreate">회차 만들기</button>
       </div>
       <div id="rList"></div>
-      <div class="hint">회차를 만들면 학생 MODE3(시험)에 나타나고, 모든 학생이 <b>같은 문제를 같은 순서</b>로 풉니다. 학생당 1회만 응시되며, 마감하면 더 이상 응시할 수 없습니다. 회차 행의 [상세]에서 학생별 답안지·문항별 정답률을 확인하세요.</div>
+      <div class="hint">회차를 만들면 학생 MODE3(시험)에 나타나고, 모든 학생이 <b>같은 문제를 같은 순서</b>로 풉니다. 학생당 1회만 응시되며, 마감하면 더 이상 응시할 수 없습니다. 회차 줄을 클릭하면 학생별 답안지·문항별 정답률이 열립니다.</div>
     </div>
 
     <!-- 회차 상세 -->
@@ -193,15 +194,17 @@ async function loadRoundList(){
   el.innerHTML="";
   list.forEach(function(r){
     const d=document.createElement("div");
-    d.style.cssText="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 2px;border-bottom:1px solid var(--line)";
+    d.style.cssText="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 2px;border-bottom:1px solid var(--line);cursor:pointer";
+    d.title="클릭하면 회차 상세(응시자·답안지·문항별 정답률)가 열립니다";
     d.innerHTML='<span style="flex:1;min-width:150px"><b>'+r.title+'</b> <small style="color:var(--faint)">· '+r.len+'문항 · 응시 '+r.taken+'명 · '+(r.open?'<span style="color:var(--correct)">진행중</span>':'<span style="color:var(--faint)">마감</span>')+'</small></span>';
-    const bV=document.createElement("button"); bV.className="btn mini"; bV.textContent="상세";
-    bV.onclick=function(){showRound(r.id);};
+    d.onclick=function(){showRound(r.id);};
+    d.onmouseenter=function(){d.style.background="var(--surface2)";};
+    d.onmouseleave=function(){d.style.background="";};
     const bT=document.createElement("button"); bT.className="btn mini"; bT.textContent=r.open?"마감":"다시 열기";
-    bT.onclick=async function(){ bT.disabled=true; await jsonp({action:"roundSet",key:ADMINKEY,id:r.id,open:r.open?"false":"true"}); loadRoundList(); };
+    bT.onclick=async function(ev){ ev.stopPropagation(); bT.disabled=true; await jsonp({action:"roundSet",key:ADMINKEY,id:r.id,open:r.open?"false":"true"}); loadRoundList(); };
     const bD=document.createElement("button"); bD.className="btn mini"; bD.style.color="var(--wrong)"; bD.textContent="삭제";
-    bD.onclick=async function(){ if(!confirm('"'+r.title+'" 회차와 답안 기록을 삭제할까요?'))return; bD.disabled=true; await jsonp({action:"roundDelete",key:ADMINKEY,id:r.id}); $("#rDetail").classList.add("hidden"); loadRoundList(); };
-    d.appendChild(bV); d.appendChild(bT); d.appendChild(bD);
+    bD.onclick=async function(ev){ ev.stopPropagation(); if(!confirm('"'+r.title+'" 회차와 답안 기록을 삭제할까요?'))return; bD.disabled=true; await jsonp({action:"roundDelete",key:ADMINKEY,id:r.id}); $("#rDetail").classList.add("hidden"); loadRoundList(); };
+    d.appendChild(bT); d.appendChild(bD);
     el.appendChild(d);
   });
 }
@@ -363,10 +366,22 @@ function renderRows(){
       `<td class="num"><span class="pct-pill" style="background:${pctColor(s.pracPct)}22;color:${pctColor(s.pracPct)}">${s.pracQ?s.pracPct+'%':'—'}</span></td>`+
       `<td class="num"><span class="pct-pill" style="background:${pctColor(s.examPct)}22;color:${pctColor(s.examPct)}">${s.examQ?s.examPct+'%':'—'}</span></td>`+
       `<td class="num">${s.sessions}</td>`+
-      `<td style="color:var(--faint);font-size:12px">${fmtTime(s.lastSeen)}</td>`;
+      `<td style="color:var(--faint);font-size:12px">${fmtTime(s.lastSeen)}</td>`+
+      `<td class="num"><button class="btn mini" style="color:var(--wrong)" data-delsid="1">삭제</button></td>`;
     tr.onclick = ()=>showDetail(s);
+    tr.querySelector("[data-delsid]").onclick = (ev)=>{ ev.stopPropagation(); deleteStudent(s); };
     tb.appendChild(tr);
   });
+}
+
+async function deleteStudent(s){
+  if(!confirm(s.name+" ("+s.sid+") 학생의 모든 기록(연습·시험·회차 답안)을 삭제할까요?\n오입력 계정 정리용이며 되돌릴 수 없습니다.")) return;
+  const j=await jsonp({action:"studentDelete",key:ADMINKEY,sid:s.sid});
+  if(!j||j.status!=="ok"){alert("삭제에 실패했습니다. 네트워크를 확인하세요.");return;}
+  $("#detail").classList.add("hidden");
+  try{ DATA=await loadAdmin(ADMINKEY); renderAll(); }catch(e){}
+  loadRoundList();
+  if(RDATA && !$("#rDetail").classList.contains("hidden")) showRound(RDATA.id);
 }
 
 function showDetail(s){
