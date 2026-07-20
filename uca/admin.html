@@ -105,6 +105,27 @@
       <div class="updated" id="updated"></div>
     </div>
 
+    <div class="section-label">시험 회차 관리 (MODE3 · 전원 동일 문항)</div>
+    <div class="panel">
+      <div class="toolbar">
+        <input id="rTitle" placeholder="회차 이름 (예: 1차 정기시험)" style="flex:1;min-width:160px">
+        <input id="rLen" type="number" value="50" min="1" max="179" style="width:84px" title="문항 수">
+        <button class="btn mini" id="rCreate">회차 만들기</button>
+      </div>
+      <div id="rList"></div>
+      <div class="hint">회차를 만들면 학생 MODE3(시험)에 나타나고, 모든 학생이 <b>같은 문제를 같은 순서</b>로 풉니다. 학생당 1회만 응시되며, 마감하면 더 이상 응시할 수 없습니다. 회차 행의 [상세]에서 학생별 답안지·문항별 정답률을 확인하세요.</div>
+    </div>
+
+    <!-- 회차 상세 -->
+    <div id="rDetail" class="panel hidden">
+      <div class="section-label" style="margin-top:0" id="rDetailTitle">회차 상세</div>
+      <div class="toolbar"><button class="btn ghost mini" id="rCsvBtn">회차 결과 CSV (문항별 O/X 포함)</button></div>
+      <div id="rTakers"></div>
+      <div class="section-label">문항별 정답률 (낮은 순 — 다시 가르칠 우선순위)</div>
+      <div id="rQstat"></div>
+      <div id="rSheet"></div>
+    </div>
+
     <!-- 학생 상세 -->
     <div id="detail" class="panel hidden">
       <div class="section-label" style="margin-top:0">학생 상세</div>
@@ -114,6 +135,7 @@
   </div>
 </div>
 
+<script src="bank.js"></script>
 <script>
 const CONFIG = { SYNC_URL: "https://script.google.com/macros/s/AKfycbzmQ6xG9QSw_NPq4zdKXuvNPa6TjaB0qJG45Y-lICrK-gIt8CzPICN3cZpkk2xkX2GO/exec" }; /* ← 학생 페이지와 동일한 Apps Script URL 붙여넣기 (비우면 이 브라우저 로컬 데이터로 미리보기) */
 
@@ -123,7 +145,21 @@ const DOM = {EDITOR:"Editor Interface",PROG:"Programming",PHYS:"Physics",ANIM:"A
   GART:"Game Art",NAV:"Navigation",EMP:"Employment",IND:"Industry"};
 
 const $ = s => document.querySelector(s);
-let DATA = null, sortKey = "examPct", sortDir = -1;
+let DATA = null, sortKey = "examPct", sortDir = -1, ADMINKEY = "", RDATA = null;
+
+/* ---- 문제은행 조인 (bank.js의 Q) ---- */
+function qhash(str){let h=5381;for(let i=0;i<str.length;i++){h=((h<<5)+h+str.charCodeAt(i))|0;}return "q"+(h>>>0).toString(36);}
+const QBYID={}; if(typeof Q!=="undefined") Q.forEach(function(q){q.qid=qhash(q.q); QBYID[q.qid]=q;});
+function correctText(q){ if(!q)return "";
+  if(q.f==="mc")return q.opts[q.ans]; if(q.f==="hotspot")return q.ans;
+  if(q.f==="order")return q.items.join(" → ");
+  if(q.f==="match")return q.left.map(function(l,i){return l+"↔"+q.right[i];}).join(" · "); return ""; }
+function ansText(q,a){ if(a===""||a===undefined||a===null)return "무응답"; if(!q)return String(a);
+  if(q.f==="mc"){const i=+a;return q.opts[i]!==undefined?q.opts[i]:String(a);}
+  if(q.f==="hotspot")return String(a);
+  if(q.f==="order")return String(a).split(",").map(function(i){return q.items[+i]!==undefined?q.items[+i]:"?";}).join(" → ");
+  if(q.f==="match")return String(a).split(",").map(function(p){const t=p.split(":");return (q.left[+t[0]]||"?")+"→"+(q.right[+t[1]]||"?");}).join(" · ");
+  return String(a); }
 
 function pctColor(r){ return r>=80?"var(--correct)":r>=50?"var(--amber)":"var(--wrong)"; }
 
@@ -140,10 +176,114 @@ async function enter(){
     $("#gateMsg").textContent = "비밀번호가 틀렸거나 서버에 연결할 수 없습니다.";
     return;
   }
+  ADMINKEY = $("#pw").value.trim();
   $("#gate").classList.add("hidden");
   $("#board").classList.remove("hidden");
   renderAll();
+  loadRoundList();
 }
+
+/* ==================== 시험 회차 관리 ==================== */
+async function loadRoundList(){
+  const el=$("#rList");
+  el.innerHTML='<div class="muted-box">회차 불러오는 중…</div>';
+  const j=await jsonp({action:"adminRounds",key:ADMINKEY});
+  const list=(j&&j.rounds)||[];
+  if(!list.length){el.innerHTML='<div class="muted-box">아직 만든 회차가 없습니다. 위에서 첫 회차를 만들어보세요.</div>';return;}
+  el.innerHTML="";
+  list.forEach(function(r){
+    const d=document.createElement("div");
+    d.style.cssText="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 2px;border-bottom:1px solid var(--line)";
+    d.innerHTML='<span style="flex:1;min-width:150px"><b>'+r.title+'</b> <small style="color:var(--faint)">· '+r.len+'문항 · 응시 '+r.taken+'명 · '+(r.open?'<span style="color:var(--correct)">진행중</span>':'<span style="color:var(--faint)">마감</span>')+'</small></span>';
+    const bV=document.createElement("button"); bV.className="btn mini"; bV.textContent="상세";
+    bV.onclick=function(){showRound(r.id);};
+    const bT=document.createElement("button"); bT.className="btn mini"; bT.textContent=r.open?"마감":"다시 열기";
+    bT.onclick=async function(){ bT.disabled=true; await jsonp({action:"roundSet",key:ADMINKEY,id:r.id,open:r.open?"false":"true"}); loadRoundList(); };
+    const bD=document.createElement("button"); bD.className="btn mini"; bD.style.color="var(--wrong)"; bD.textContent="삭제";
+    bD.onclick=async function(){ if(!confirm('"'+r.title+'" 회차와 답안 기록을 삭제할까요?'))return; bD.disabled=true; await jsonp({action:"roundDelete",key:ADMINKEY,id:r.id}); $("#rDetail").classList.add("hidden"); loadRoundList(); };
+    d.appendChild(bV); d.appendChild(bT); d.appendChild(bD);
+    el.appendChild(d);
+  });
+}
+$("#rCreate").onclick=async function(){
+  const t=$("#rTitle").value.trim()||"시험 회차";
+  const len=Math.max(1,Math.min(179,parseInt($("#rLen").value,10)||50));
+  const b=$("#rCreate"); b.disabled=true;
+  const j=await jsonp({action:"roundCreate",key:ADMINKEY,title:t,len:len});
+  b.disabled=false;
+  if(!j||j.status!=="ok"){alert("회차 생성에 실패했습니다. 네트워크를 확인하세요.");return;}
+  $("#rTitle").value="";
+  loadRoundList();
+};
+async function showRound(id){
+  const j=await jsonp({action:"adminRound",key:ADMINKEY,id:id});
+  if(!j||j.status!=="ok"){alert("회차 조회에 실패했습니다.");return;}
+  RDATA=j.round;
+  $("#rDetail").classList.remove("hidden");
+  $("#rDetailTitle").textContent="회차 상세 — "+RDATA.title+" · "+RDATA.len+"문항 · "+(RDATA.open?"진행중":"마감");
+  /* 응시자 표 */
+  const sids=Object.keys(RDATA.responses||{});
+  if(!sids.length){
+    $("#rTakers").innerHTML='<div class="muted-box">아직 응시한 학생이 없습니다.</div>';
+    $("#rQstat").innerHTML=""; $("#rSheet").innerHTML="";
+    try{$("#rDetail").scrollIntoView({behavior:"smooth",block:"nearest"});}catch(e){}
+    return;
+  }
+  const takers=sids.map(function(sid){const o=RDATA.responses[sid];return {sid:sid,name:o.name||sid,got:o.got|0,total:o.total|0,pct:o.pct|0,t:o.t||""};});
+  takers.sort(function(a,b){return b.pct-a.pct||b.got-a.got;});
+  let h='<table><thead><tr><th class="num">#</th><th>학번</th><th>이름</th><th class="num">점수</th><th class="num">정답률</th><th>제출</th></tr></thead><tbody>';
+  takers.forEach(function(s,i){
+    h+='<tr data-sid="'+s.sid+'"><td class="num">'+(i+1)+'</td><td>'+s.sid+'</td><td>'+s.name+'</td><td class="num">'+s.got+'/'+s.total+'</td>'+
+       '<td class="num"><span class="pct-pill" style="background:'+pctColor(s.pct)+'22;color:'+pctColor(s.pct)+'">'+s.pct+'%</span></td>'+
+       '<td style="color:var(--faint);font-size:12px">'+fmtTime(s.t)+'</td></tr>';
+  });
+  h+='</tbody></table><div class="hint">행을 클릭하면 그 학생의 답안지(문항별 풀이 내역)가 아래에 표시됩니다.</div>';
+  $("#rTakers").innerHTML=h;
+  $("#rTakers").querySelectorAll("tr[data-sid]").forEach(function(tr){tr.onclick=function(){showSheet(tr.dataset.sid);};});
+  /* 문항별 정답률 */
+  const qs=(RDATA.qstat||[]).slice().sort(function(a,b){return a.pct-b.pct;});
+  $("#rQstat").innerHTML=qs.length?qs.map(function(x){
+    const q=QBYID[x.qid]; const label=x.n+". "+(q?q.q:x.qid);
+    return '<div class="dbrow"><span class="dn" title="'+(q?q.q.replace(/"/g,"&quot;"):"")+'">'+label+'</span><div class="dbar"><i style="width:'+x.pct+'%;background:'+pctColor(x.pct)+'"></i></div><span class="dp">'+x.correct+'/'+x.taken+'</span></div>';
+  }).join(""):'<div class="muted-box">응시 데이터가 없습니다.</div>';
+  $("#rSheet").innerHTML="";
+  try{$("#rDetail").scrollIntoView({behavior:"smooth",block:"nearest"});}catch(e){}
+}
+function showSheet(sid){
+  const resp=(RDATA.responses||{})[sid]; if(!resp)return;
+  const paper=RDATA.paper||[];
+  let h='<div class="section-label">답안지 — '+(resp.name||sid)+' ('+sid+') · '+resp.got+'/'+resp.total+' ('+resp.pct+'%)</div>';
+  paper.forEach(function(qid,i){
+    const q=QBYID[qid]; const a=(resp.answers||[])[i]||{};
+    const ok=!!a.ok; const col=ok?"var(--correct)":"var(--wrong)";
+    h+='<div style="padding:10px 2px;border-bottom:1px solid var(--line);font-size:13.5px">'+
+       '<div style="margin-bottom:4px"><b style="color:'+col+'">'+(ok?"○":"✕")+' '+(i+1)+'번</b> '+(q?q.q:qid)+'</div>'+
+       '<div style="color:var(--muted)">학생 답: '+ansText(q,a.a)+(ok?'':' <span style="color:var(--faint)">| 정답: '+correctText(q)+'</span>')+'</div>'+
+       '</div>';
+  });
+  $("#rSheet").innerHTML=h;
+}
+/* 회차 CSV: 학생 행 + 문항별 O/X */
+$("#rCsvBtn").onclick=function(){
+  if(!RDATA){alert("먼저 회차 상세를 여세요.");return;}
+  const paper=RDATA.paper||[]; const sids=Object.keys(RDATA.responses||{});
+  const head=["학번","이름","점수","총문항","정답률(%)","제출시각"].concat(paper.map(function(_,i){return "Q"+(i+1);}));
+  const lines=[head.join(",")];
+  sids.map(function(sid){return {sid:sid,o:RDATA.responses[sid]};})
+      .sort(function(a,b){return (b.o.pct|0)-(a.o.pct|0);})
+      .forEach(function(x){
+        const row=[x.sid,x.o.name||"",x.o.got|0,x.o.total|0,x.o.pct|0,fmtTime(x.o.t)]
+          .concat(paper.map(function(_,i){const a=(x.o.answers||[])[i];return a?(a.ok?"O":"X"):"-";}));
+        lines.push(row.join(","));
+      });
+  lines.push("");
+  lines.push(["문항번호","질문","정답","정답률(%)"].join(","));
+  (RDATA.qstat||[]).forEach(function(x){const q=QBYID[x.qid];
+    lines.push([x.n,'"'+(q?q.q.replace(/"/g,'""'):x.qid)+'"','"'+(q?String(correctText(q)).replace(/"/g,'""'):"")+'"',x.pct].join(","));});
+  const blob=new Blob(["\ufeff"+lines.join("\n")],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="UCA_회차결과_"+(RDATA.title||RDATA.id)+".csv"; a.click();
+};
 
 function jsonp(params){
   return new Promise(function(resolve){

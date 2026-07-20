@@ -3,8 +3,11 @@
  * -----------------------------------------------------------
  * 읽기/쓰기 모두 GET+JSONP (교차도메인 CORS·POST 리다이렉트 회피).
  * action: ping | me(sid) | check(sid,name) | board | admin(key) | submit(payload)
+ *       | rounds(sid) | roundCreate(key,title,len) | roundSet(key,id,open)
+ *       | roundDelete(key,id) | adminRounds(key) | adminRound(key,id)
  *
  * mode 버킷: 'exam' → 시험 점수, 그 외('practice'/'mock') → 연습 점수
+ * v4: 시험 회차(round) — 전원 동일 문항·문항별 답안 저장·관리자 열람
  * ▶ 코드 교체 후: 배포 관리 > (연필) > 버전: 새 버전 > 배포 (URL 유지)
  *************************************************************/
 
@@ -80,6 +83,87 @@ function handle(p){
     return {status:'ok', board: leaderboard(readDB())};
   }
 
+  /* ---- 시험 회차 (전원 동일 문항) ---- */
+  if (action === 'rounds'){            /* 학생용: 열린 회차 목록 + 본인 응시 여부 */
+    const db = readDB();
+    const sid = String(p.sid || '').trim();
+    const list = [];
+    Object.keys(db.rounds || {}).forEach(function(id){
+      const r = db.rounds[id];
+      if (!r.open) return;
+      list.push({id:id, title:r.title, len:r.len|0, seed:r.seed|0,
+                 done: !!(sid && r.responses && r.responses[sid])});
+    });
+    list.sort(function(a,b){ return a.id < b.id ? 1 : -1; });
+    return {status:'ok', rounds:list};
+  }
+
+  if (action === 'roundCreate'){
+    if (String(p.key) !== String(ADMIN_KEY)) return {status:'error', message:'unauthorized'};
+    const db = readDB();
+    db.rounds = db.rounds || {};
+    const id = 'R' + new Date().getTime().toString(36);
+    const seed = Math.floor(Math.random() * 2147483646) + 1;
+    db.rounds[id] = {title: String(p.title || '시험 회차').slice(0,60),
+                     len: Math.max(1, Math.min(179, parseInt(p.len,10) || 50)),
+                     seed: seed, open: true, created: new Date().toISOString(),
+                     paper: null, responses: {}};
+    saveDB(db);
+    return {status:'ok', id:id, round:db.rounds[id]};
+  }
+
+  if (action === 'roundSet'){          /* 열기/마감 */
+    if (String(p.key) !== String(ADMIN_KEY)) return {status:'error', message:'unauthorized'};
+    const db = readDB();
+    const r = (db.rounds || {})[String(p.id)];
+    if (!r) return {status:'error', message:'no round'};
+    r.open = (String(p.open) === 'true' || String(p.open) === '1');
+    saveDB(db);
+    return {status:'ok'};
+  }
+
+  if (action === 'roundDelete'){
+    if (String(p.key) !== String(ADMIN_KEY)) return {status:'error', message:'unauthorized'};
+    const db = readDB();
+    if (db.rounds && db.rounds[String(p.id)]){ delete db.rounds[String(p.id)]; saveDB(db); }
+    return {status:'ok'};
+  }
+
+  if (action === 'adminRounds'){       /* 회차 목록 + 응시 인원 */
+    if (String(p.key) !== String(ADMIN_KEY)) return {status:'error', message:'unauthorized'};
+    const db = readDB();
+    const list = [];
+    Object.keys(db.rounds || {}).forEach(function(id){
+      const r = db.rounds[id];
+      list.push({id:id, title:r.title, len:r.len|0, open:!!r.open, created:r.created||'',
+                 taken: Object.keys(r.responses||{}).length});
+    });
+    list.sort(function(a,b){ return a.id < b.id ? 1 : -1; });
+    return {status:'ok', rounds:list};
+  }
+
+  if (action === 'adminRound'){        /* 회차 상세: 답안지 + 문항별 정답률 */
+    if (String(p.key) !== String(ADMIN_KEY)) return {status:'error', message:'unauthorized'};
+    const db = readDB();
+    const r = (db.rounds || {})[String(p.id)];
+    if (!r) return {status:'error', message:'no round'};
+    /* 문항별 정답률 (qid 기준 — 질문 텍스트는 admin.html이 bank.js로 조인) */
+    const qstat = [];
+    if (r.paper){
+      r.paper.forEach(function(qid, i){
+        let n = 0, c = 0;
+        Object.keys(r.responses||{}).forEach(function(sid){
+          const a = (r.responses[sid].answers||[])[i];
+          if (a){ n++; if (a.ok) c++; }
+        });
+        qstat.push({n:i+1, qid:qid, taken:n, correct:c,
+                    pct: n ? Math.round(c/n*100) : 0});
+      });
+    }
+    return {status:'ok', round:{id:String(p.id), title:r.title, len:r.len|0, open:!!r.open,
+            created:r.created||'', paper:r.paper||null, responses:r.responses||{}, qstat:qstat}};
+  }
+
   if (action === 'admin'){
     if (String(p.key) !== String(ADMIN_KEY)) return {status:'error', message:'unauthorized'};
     return {status:'ok', data: adminData(readDB())};
@@ -106,6 +190,27 @@ function submitSession(body){
 
   const sess = body.session || {};
   const isExam = (sess.mode === 'exam');
+
+  /* ---- 시험 회차 답안 저장 (전원 동일 문항) ---- */
+  if (isExam && sess.round && db.rounds && db.rounds[sess.round]){
+    const r = db.rounds[sess.round];
+    r.responses = r.responses || {};
+    if (r.responses[sid]){
+      /* 재응시 차단: 첫 제출만 인정, 개인 누적에도 반영하지 않음 */
+      return db.students[sid];
+    }
+    if (!r.paper && sess.paper){
+      r.paper = String(sess.paper).split(',');   /* 문제지 = qid 목록 (전원 동일) */
+    }
+    r.responses[sid] = {
+      name: s.name || String(body.name||'').trim(),
+      t: new Date().toISOString(),
+      total: sess.total|0, got: sess.got|0, pct: sess.pct|0,
+      answers: (sess.answers||[]).map(function(a){
+        return {ok: a.ok ? 1 : 0, a: String(a.a||'').slice(0,120)};
+      })
+    };
+  }
   s.sessions = s.sessions || [];
   s.sessions.push({
     t: new Date().toISOString(),
