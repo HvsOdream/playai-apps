@@ -120,10 +120,11 @@
     <!-- 회차 상세 -->
     <div id="rDetail" class="panel hidden">
       <div class="section-label" style="margin-top:0" id="rDetailTitle">회차 상세</div>
-      <div class="toolbar"><button class="btn ghost mini" id="rCsvBtn">회차 결과 CSV (문항별 O/X 포함)</button></div>
+      <div class="toolbar">
+        <button class="btn ghost mini" id="rCsvBtn">회차 결과 CSV (문항별 O/X·문항별 정답률 포함)</button>
+        <button class="btn ghost mini" id="rCloseBtn">닫기</button>
+      </div>
       <div id="rTakers"></div>
-      <div class="section-label">문항별 정답률 (낮은 순 — 다시 가르칠 우선순위)</div>
-      <div id="rQstat"></div>
       <div id="rSheet"></div>
     </div>
 
@@ -228,7 +229,7 @@ async function showRound(id){
   const sids=Object.keys(RDATA.responses||{});
   if(!sids.length){
     $("#rTakers").innerHTML='<div class="muted-box">아직 응시한 학생이 없습니다.</div>';
-    $("#rQstat").innerHTML=""; $("#rSheet").innerHTML="";
+    $("#rSheet").innerHTML="";
     try{$("#rDetail").scrollIntoView({behavior:"smooth",block:"nearest"});}catch(e){}
     return;
   }
@@ -243,12 +244,7 @@ async function showRound(id){
   h+='</tbody></table><div class="hint">행을 클릭하면 그 학생의 답안지(문항별 풀이 내역)가 아래에 표시됩니다.</div>';
   $("#rTakers").innerHTML=h;
   $("#rTakers").querySelectorAll("tr[data-sid]").forEach(function(tr){tr.onclick=function(){showSheet(tr.dataset.sid);};});
-  /* 문항별 정답률 */
-  const qs=(RDATA.qstat||[]).slice().sort(function(a,b){return a.pct-b.pct;});
-  $("#rQstat").innerHTML=qs.length?qs.map(function(x){
-    const q=QBYID[x.qid]; const label=x.n+". "+(q?q.q:x.qid);
-    return '<div class="dbrow"><span class="dn" title="'+(q?q.q.replace(/"/g,"&quot;"):"")+'">'+label+'</span><div class="dbar"><i style="width:'+x.pct+'%;background:'+pctColor(x.pct)+'"></i></div><span class="dp">'+x.correct+'/'+x.taken+'</span></div>';
-  }).join(""):'<div class="muted-box">응시 데이터가 없습니다.</div>';
+  /* 문항별 정답률 차트는 화면에서 제거(v4.2) — 데이터는 [회차 결과 CSV]에 포함 */
   $("#rSheet").innerHTML="";
   try{$("#rDetail").scrollIntoView({behavior:"smooth",block:"nearest"});}catch(e){}
 }
@@ -266,6 +262,8 @@ function showSheet(sid){
   });
   $("#rSheet").innerHTML=h;
 }
+$("#rCloseBtn").onclick=function(){ $("#rDetail").classList.add("hidden"); };
+
 /* 회차 CSV: 학생 행 + 문항별 O/X */
 $("#rCsvBtn").onclick=function(){
   if(!RDATA){alert("먼저 회차 상세를 여세요.");return;}
