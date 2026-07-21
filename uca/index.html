@@ -145,6 +145,8 @@
   .badge.num{background:var(--accent-dim);color:var(--text)}
   .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
   @media(max-width:640px){.grid3{grid-template-columns:1fr}}
+  .enterms{margin-top:9px;display:flex;flex-wrap:wrap;gap:5px;align-items:center;font-size:11px;color:var(--faint)}
+  .entag{font-family:var(--mono);font-size:11px;padding:2px 8px;border:1px solid var(--line);border-radius:999px;background:var(--surface2);color:var(--accent)}
   #qnav{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
   #qnav button{font-family:var(--mono);font-size:11.5px;min-width:34px;height:30px;border-radius:7px;border:1px solid var(--line);background:var(--surface2);color:var(--muted);cursor:pointer;padding:0 4px}
   #qnav button.answered{background:var(--accent-dim);border-color:var(--accent);color:var(--text)}
@@ -781,8 +783,28 @@ function showFeedback(q,ok){
     d.classList.add(state.matchPairs[li]===li?"correct":"wrong");});}
   const fb=$("#fb");
   let ans=correctText(q);
-  fb.innerHTML=`<div class="fb ${ok?"ok":"no"}"><b>${ok?"정답":"오답"}</b>${ok?"":` · 정답: ${ans}`}<span class="exp">${q.e}</span></div>`;
+  fb.innerHTML=`<div class="fb ${ok?"ok":"no"}"><b>${ok?"정답":"오답"}</b>${ok?"":` · 정답: ${ans}`}<span class="exp">${q.e}</span>${enTermsHtml(q)}</div>`;
 }
+/* ---- 영문 용어 트레이닝: 문항에서 영문 키워드 자동 추출 ---- */
+const EN_STOP={"a":1,"b":1,"c":1,"d":1,"x":1,"the":1,"of":1,"and":1,"or":1,"vs":1,"etc":1,"in":1,"to":1,"on":1,"is":1,"true":1,"false":1};
+function enTerms(q){
+  const pool=[q.q,q.e||""].concat(q.opts||[],q.items||[],q.left||[],q.right||[]).join(" ");
+  const m=pool.match(/[A-Za-z][\w.#+]*(?:\s+[A-Z][\w.()#+-]*)*(?:\([A-Za-z0-9 ,."']*\))?/g)||[];
+  const seen={},out=[];
+  m.forEach(function(t){
+    t=t.replace(/[.,;:'"()]+$/,"").trim();
+    if(t.length<2) return;
+    const k=t.toLowerCase();
+    if(EN_STOP[k]||seen[k]) return;
+    seen[k]=1; out.push(t);
+  });
+  return out.slice(0,8);
+}
+function enTermsHtml(q){
+  const t=enTerms(q);
+  return t.length?'<div class="enterms">🔤 영문 용어:'+t.map(function(x){return '<span class="entag">'+x.replace(/</g,"&lt;")+'</span>';}).join("")+'</div>':'';
+}
+
 function correctText(q){
   if(q.f==="mc")return q.opts[q.ans];
   if(q.f==="hotspot")return q.ans;
@@ -841,7 +863,7 @@ function renderReview(i){
   } else if(q.f==="hotspot"){
     html+=`<div class="hs-wrap">${q.tmpl==="editor"?svgEditor():svgInspector()}</div>`;
   }
-  html+=`<div id="fb"><div class="fb ${ok?'ok':'no'}"><b>${ok?'정답':'오답'}</b>${ok?'':' · 정답: '+correctText(q)}<span class="exp">${q.e}</span></div></div>`;
+  html+=`<div id="fb"><div class="fb ${ok?'ok':'no'}"><b>${ok?'정답':'오답'}</b>${ok?'':' · 정답: '+correctText(q)}<span class="exp">${q.e}</span>${enTermsHtml(q)}</div></div>`;
   p.innerHTML=html;
   if(q.f==="hotspot"){document.querySelectorAll("#qpanel svg .hz").forEach(z=>{if(z.dataset.r===q.ans)z.classList.add("correct");else if(z.dataset.r===ans)z.classList.add("wrong");});}
 }
@@ -877,7 +899,7 @@ function renderResults(){
   wrong.forEach(({q,i})=>{
     const d=document.createElement("div");d.className="review-item";
     d.innerHTML=`<div class="rq"><span class="badge num" style="margin-right:6px">${i+1}번</span><span class="badge fmt" style="margin-right:6px">${FMTLABEL[q.f]}</span>${q.q}</div>
-      <div class="ra"><span class="g">정답: ${correctText(q)}</span><br><span style="color:var(--faint)">${q.e}</span></div>`;
+      <div class="ra"><span class="g">정답: ${correctText(q)}</span><br><span style="color:var(--faint)">${q.e}</span>${enTermsHtml(q)}</div>`;
     rv.appendChild(d);
   });
   $("#retry").style.display=state.round?"none":"";
