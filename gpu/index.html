@@ -493,24 +493,35 @@ function jsonp(params, cb){
   let done=false;
   const cleanup=()=>{ try{ delete window[fn]; }catch(e){} if(s.parentNode) s.parentNode.removeChild(s); };
   window[fn]=(data)=>{ if(done) return; done=true; cb(data); cleanup(); };
-  s.onerror=()=>{ if(done) return; done=true; cb(null); cleanup(); };
+  s.onerror=()=>{ if(done) return; done=true; cb(null,'blocked'); cleanup(); };
   const qs=Object.keys(params).map(k=>encodeURIComponent(k)+'='+encodeURIComponent(params[k])).join('&');
   s.src=CLOUD_URL+'?'+qs+'&callback='+fn;
   document.body.appendChild(s);
-  setTimeout(()=>{ if(!done){ done=true; cb(null); cleanup(); } }, 12000);
+  setTimeout(()=>{ if(!done){ done=true; cb(null,'timeout'); cleanup(); } }, 25000);
 }
 
-function loadFromCloud(){
+function loadFromCloud(attempt){
+  attempt = attempt || 1;
   if(!CLOUD_URL){ setCloud('로컬 데이터(미연동)', ''); return; }
-  setCloud('☁ 불러오는 중…', '');
-  jsonp({action:'read'}, (j)=>{
+  setCloud(attempt>1 ? ('☁ 다시 연결 중… ('+attempt+'/3)') : '☁ 불러오는 중…', '');
+  jsonp({action:'read'}, (j, why)=>{
     if(j && j.status==='ok' && j.data && j.data.applications){
       STATE = j.data; render();
       setCloud('☁ 불러옴 · ' + (j.data._synced ? new Date(j.data._synced).toLocaleString('ko-KR'):'—'), 'ok');
     } else if(j && j.status==='empty'){
       setCloud('☁ 서버 비어있음 — 첫 저장 시 생성', '');
+    } else if(!j && attempt < 3){
+      setTimeout(()=>loadFromCloud(attempt+1), 1200*attempt);   /* 자동 재시도 */
     } else {
-      setCloud('☁ 연결 실패(로컬 표시)', 'err');
+      const hint = (why==='blocked')
+        ? '이 PC에서 script.google.com 호출이 차단된 것으로 보입니다 — 광고차단 확장·보안 프로그램·시크릿 모드로 확인'
+        : '서버 응답 지연 — 잠시 후 다시 시도';
+      setCloud('☁ 연결 실패(로컬 표시) · ' + hint + ' ', 'err');
+      const el=document.getElementById('cloudStatus');
+      const b=document.createElement('button');
+      b.textContent='다시 연결'; b.style.cssText='margin-left:6px;cursor:pointer;font-size:12px;padding:2px 8px;border-radius:6px;border:1px solid currentColor;background:transparent;color:inherit';
+      b.onclick=()=>loadFromCloud(1);
+      el.appendChild(b);
     }
   });
 }
