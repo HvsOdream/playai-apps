@@ -139,7 +139,8 @@
 
 <script src="bank.js"></script>
 <script>
-const CONFIG = { SYNC_URL: "https://script.google.com/macros/s/AKfycbzmQ6xG9QSw_NPq4zdKXuvNPa6TjaB0qJG45Y-lICrK-gIt8CzPICN3cZpkk2xkX2GO/exec" }; /* ← 학생 페이지와 동일한 Apps Script URL 붙여넣기 (비우면 이 브라우저 로컬 데이터로 미리보기) */
+const CONFIG = { SYNC_URL: "https://script.google.com/macros/s/AKfycbzmQ6xG9QSw_NPq4zdKXuvNPa6TjaB0qJG45Y-lICrK-gIt8CzPICN3cZpkk2xkX2GO/exec" }; /* ← 학생 페이지와 동일한 Apps Script URL (비우면 로컬 미리보기) */
+const PROXY = "https://playai-api.withsky0.workers.dev/uca"; /* 중계 서버(Cloudflare) */
 
 const DOM = {EDITOR:"Editor Interface",PROG:"Programming",PHYS:"Physics",ANIM:"Animation",
   ASSET:"Asset Management",UI:"User Interface",LIGHT:"Lighting",AUDIO:"Audio",
@@ -286,7 +287,18 @@ $("#rCsvBtn").onclick=function(){
   a.download="UCA_회차결과_"+(RDATA.title||RDATA.id)+".csv"; a.click();
 };
 
-function jsonp(params){
+/* ---- 중계 서버 우선(fetch·CORS), 실패 시 기존 JSONP 직접 호출 폴백 ---- */
+async function jsonp(params){
+  if(PROXY){
+    try{
+      const qs=Object.keys(params).map(function(k){return encodeURIComponent(k)+"="+encodeURIComponent(params[k]);}).join("&");
+      const r=await fetch(PROXY+"?"+qs,{cache:"no-store"});
+      if(r.ok) return await r.json();
+    }catch(e){}
+  }
+  return jsonpDirect(params);
+}
+function jsonpDirect(params){
   return new Promise(function(resolve){
     if(!CONFIG.SYNC_URL){ resolve(null); return; }
     var fn="__jcb"+Math.random().toString(36).slice(2);

@@ -707,7 +707,8 @@ $("#home").onclick=()=>{$("#results").classList.add("hidden");$("#landing").clas
 $("#quitBtn").onclick=()=>{if(state.tick)clearInterval(state.tick);$("#quiz").classList.add("hidden");$("#landing").classList.remove("hidden");window.scrollTo({top:0});};
 
 /* ==================== v2: 개인화 · 서버 연동 ==================== */
-const CONFIG = { SYNC_URL: "https://script.google.com/macros/s/AKfycbzmQ6xG9QSw_NPq4zdKXuvNPa6TjaB0qJG45Y-lICrK-gIt8CzPICN3cZpkk2xkX2GO/exec" }; /* ← Apps Script 웹앱 URL 붙여넣기 (비우면 로컬 저장만) */
+const CONFIG = { SYNC_URL: "https://script.google.com/macros/s/AKfycbzmQ6xG9QSw_NPq4zdKXuvNPa6TjaB0qJG45Y-lICrK-gIt8CzPICN3cZpkk2xkX2GO/exec" }; /* ← Apps Script 웹앱 URL (비우면 로컬 저장만) */
+const PROXY = "https://playai-api.withsky0.workers.dev/uca"; /* 중계 서버(Cloudflare) — 학교 PC의 script.google.com 차단 우회 */
 
 let USER = null; /* {sid,name,team} */
 
@@ -752,7 +753,18 @@ function localBoard(){
 }
 
 /* ---- 서버 API (실패 시 로컬 폴백) ---- */
-function jsonp(params){
+/* ---- 중계 서버 우선(fetch·CORS), 실패 시 기존 JSONP 직접 호출 폴백 ---- */
+async function jsonp(params){
+  if(PROXY){
+    try{
+      const qs=Object.keys(params).map(function(k){return encodeURIComponent(k)+"="+encodeURIComponent(params[k]);}).join("&");
+      const r=await fetch(PROXY+"?"+qs,{cache:"no-store"});
+      if(r.ok) return await r.json();
+    }catch(e){}
+  }
+  return jsonpDirect(params);
+}
+function jsonpDirect(params){
   return new Promise(function(resolve){
     if(!CONFIG.SYNC_URL){ resolve(null); return; }
     var fn="__jcb"+Math.random().toString(36).slice(2);
