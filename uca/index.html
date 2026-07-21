@@ -22,7 +22,8 @@
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
   @media(max-width:560px){.grid2{grid-template-columns:1fr}}
   .mode-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;cursor:pointer;
-    transition:border-color .15s,transform .15s;text-align:left}
+    transition:border-color .15s,transform .15s;text-align:left;color:var(--text)}
+  .mode-card h3{color:var(--text)}
   .mode-card:hover{border-color:var(--accent)}
   .mode-card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .mode-card .mc-tag{font-family:var(--mono);font-size:11px;color:var(--amber);letter-spacing:.12em}
@@ -144,6 +145,10 @@
   .badge.num{background:var(--accent-dim);color:var(--text)}
   .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
   @media(max-width:640px){.grid3{grid-template-columns:1fr}}
+  #qnav{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
+  #qnav button{font-family:var(--mono);font-size:11.5px;min-width:34px;height:30px;border-radius:7px;border:1px solid var(--line);background:var(--surface2);color:var(--muted);cursor:pointer;padding:0 4px}
+  #qnav button.answered{background:var(--accent-dim);border-color:var(--accent);color:var(--text)}
+  #qnav button.cur{outline:2px solid var(--accent);outline-offset:1px}
   .revnav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}
   .revnav .hint{flex:1;text-align:center;margin:0}
   .opt[disabled],.match-item,.order-item{cursor:default}
@@ -182,9 +187,54 @@
       <div class="dbreak" id="dashWeak"></div>
       <div class="row">
         <button class="btn" id="goPractice">문제 풀러 가기</button>
+        <button class="btn ghost mini" id="guideBtn">📖 시험 가이드</button>
         <button class="btn ghost mini hidden" id="weakBtn">약점 3개 집중 연습</button>
         <button class="btn ghost mini hidden" id="reviewBtn">틀린 문제만 복습</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ============ GUIDE (시험 가이드) ============ -->
+  <div id="guide" class="hidden">
+    <div class="eyebrow">Unity Certified Associate · Exam Guide</div>
+    <h1 style="font-size:clamp(20px,4vw,26px)">UCA 시험 가이드</h1>
+    <div class="sub">자격증 개요 · 추천 학습 루트 · 출제 유형 안내</div>
+
+    <div class="section-label">1 · UCA 자격증이란</div>
+    <div class="panel" style="font-size:14px;line-height:1.7">
+      <b>Unity Certified Associate: Game Developer</b>는 Unity 공식 입문~주니어 레벨 자격증입니다.
+      Unity 에디터 활용, 프로그래밍 기초, 물리·애니메이션·UI·라이팅 등 게임 개발 전반과
+      게임 디자인·프로젝트 관리·취업 준비 같은 산업 지식까지 검증합니다.<br><br>
+      · <b>형식</b>: 객관식 중심 (이 앱의 4개 유형 — 객관식·핫스팟·드래그·매칭 — 이 실제 유형을 반영)<br>
+      · <b>시간</b>: 약 90분 내외 (회차·언어에 따라 다를 수 있음)<br>
+      · <b>합격 기준</b>: Unity 비공개 (통상 정답률 70% 이상을 목표로 준비 권장)<br>
+      · <b>공식 정보·응시</b>: <a href="https://unity.com/products/unity-certifications/associate-game-developer" target="_blank" style="color:var(--accent)">unity.com 인증 페이지</a> ·
+      <a href="https://learn.unity.com/pathway/game-development" target="_blank" style="color:var(--accent)">Unity Learn 공식 무료 대비 코스</a><br>
+      <small style="color:var(--faint)">※ 문항 수·합격선은 Unity가 공식 공개하지 않으므로 위 공식 페이지 기준으로 최종 확인하세요.</small>
+    </div>
+
+    <div class="section-label">2 · 추천 학습 루트 (이 앱 활용법)</div>
+    <div class="panel" style="font-size:14px;line-height:1.7">
+      <b>STEP 1 — 진단</b>: MODE 02 연습 모의고사 50문항을 먼저 풀어 현재 실력과 약점 도메인을 파악하세요.<br>
+      <b>STEP 2 — 약점 보강</b>: 대시보드의 <b>"약점 3개 집중 연습"</b>과 <b>"틀린 문제만 복습"</b>으로 정답률 낮은 도메인부터 끌어올리세요. MODE 01에서 도메인·난이도를 직접 골라 연습할 수도 있습니다.<br>
+      <b>STEP 3 — 실전 감각</b>: 연습 정답률이 70%를 넘으면 MODE 02를 반복해 시간 감각을 익히고, 교수님이 여는 MODE 03 시험 회차로 실전처럼 점검하세요.<br>
+      <b>목표선</b>: 모의고사 정답률 <b style="color:var(--correct)">80% 이상</b>이 꾸준히 나오면 실제 응시 준비가 된 것입니다.
+    </div>
+
+    <div class="section-label">3 · 출제 비중 &amp; 자주 나오는 유형</div>
+    <div class="panel" style="font-size:14px;line-height:1.7">
+      이 앱의 179문항은 공식 도메인 비중(블루프린트)에 맞춰 구성되어 있습니다. 특히 아래 영역이 비중이 크고 자주 출제됩니다:<br><br>
+      · <b>Editor Interface</b> — 각 창(Hierarchy/Inspector/Project/Console/Scene/Game)의 역할, 창 화면에서 위치 찾기(핫스팟형)<br>
+      · <b>Programming</b> — 생명주기 순서(Awake→OnEnable→Start→Update), Update vs FixedUpdate, Time.deltaTime, GetComponent<br>
+      · <b>Physics</b> — Rigidbody 속성, Collider 종류·성능, isTrigger vs Collision, Raycast<br>
+      · <b>Animation</b> — Animator 상태·전환·파라미터, Any State<br>
+      · <b>Asset·UI</b> — Prefab 개념과 Overrides, Canvas Render Mode, Rect Transform·앵커<br><br>
+      <b>유형 팁</b>: ① "~의 역할은?" 식 정의 문제가 가장 많음 ② 절차를 순서대로 배열하는 문제(순서형) ③ 개념-설명 짝짓기(매칭형) ④ 에디터 화면에서 위치 클릭(핫스팟형). 모두 이 앱에서 그대로 연습됩니다.<br>
+      <small style="color:var(--faint)">※ 실제 기출문제 원문은 응시 규정(NDA)상 공개·복제가 금지되어 있어, 유형·경향 안내로 제공합니다.</small>
+    </div>
+
+    <div class="row">
+      <button class="btn" id="guideBack">← 대시보드로</button>
     </div>
   </div>
 
@@ -254,9 +304,11 @@
       <div class="pbar"><i id="pfill"></i></div>
       <span class="timer" id="timer"></span>
     </div>
+    <div id="qnav" class="hidden"></div>
     <div class="panel" id="qpanel"></div>
     <div class="navrow">
       <button class="btn ghost mini" id="quitBtn">그만두기</button>
+      <button class="btn ghost mini hidden" id="submitExam">제출하기</button>
       <button class="btn" id="nextBtn" disabled>확인</button>
     </div>
     <div class="revnav hidden" id="revNav">
@@ -269,7 +321,8 @@
   <!-- ============ RESULTS ============ -->
   <div id="results" class="hidden">
     <div class="eyebrow">결과 리포트</div>
-    <div class="panel">
+    <div class="panel" id="reportArea">
+      <div class="hint" id="reportMeta" style="text-align:center;margin-bottom:6px"></div>
       <div class="score-hero">
         <div class="score-num" id="scoreNum">0<small>/0</small></div>
         <div class="verdict" id="verdict"></div>
@@ -278,6 +331,7 @@
       <div class="section-label">도메인별 정답률 (약점 진단)</div>
       <div class="dbreak" id="dbreak"></div>
     </div>
+    <div class="row"><button class="btn ghost mini" id="saveReportBtn">📷 리포트 이미지 저장</button></div>
     <div class="section-label">오답 리뷰</div>
     <div id="review"></div>
     <div class="row">
@@ -447,6 +501,8 @@ $("#startExam").onclick=()=>{
 function startQuiz(list,mode,round){
   state={list,mode,round:round||null,idx:0,viewIdx:0,answers:new Array(list.length).fill(null),correct:new Array(list.length).fill(false),
     committed:false,start:Date.now(),tick:null};
+  $("#qnav").classList.toggle("hidden",mode==="practice");
+  $("#submitExam").classList.toggle("hidden",mode==="practice");
   $("#landing").classList.add("hidden");$("#dashboard").classList.add("hidden");$("#login").classList.add("hidden");$("#results").classList.add("hidden");$("#quiz").classList.remove("hidden");
   if(mode!=="practice"){state.tick=setInterval(updTimer,1000);updTimer();}else{$("#timer").textContent="";}
   renderQ();
@@ -479,10 +535,80 @@ function renderQ(){
   html+=`<div id="fb"></div>`;
   p.innerHTML=html;
   wire(q);
-  $("#nextBtn").textContent=(state.idx===state.list.length-1)? (state.mode!=="practice"?"제출":"결과 보기") : "확인";
-  $("#nextBtn").disabled=true;$("#nextBtn").style.display="";
+  if(state.mode==="practice"){
+    $("#nextBtn").textContent=(state.idx===state.list.length-1)?"결과 보기":"확인";
+    $("#nextBtn").disabled=true;
+  } else {
+    restoreAnswer(q, state.answers[state.idx]);
+    $("#nextBtn").textContent="다음";
+    $("#nextBtn").disabled=false;
+    renderQnav();
+  }
+  $("#nextBtn").style.display="";
   attachSwipe();updRevNav();
 }
+
+/* ---- 시험·모의고사: 문항 번호 그리드 (클릭 이동·답 수정, 정답 노출 없음) ---- */
+function renderQnav(){
+  const nav=$("#qnav"); if(!state||state.mode==="practice"){nav.classList.add("hidden");return;}
+  nav.classList.remove("hidden");
+  if(nav.childElementCount!==state.list.length){
+    nav.innerHTML="";
+    state.list.forEach(function(_,i){
+      const b=document.createElement("button"); b.type="button"; b.textContent=i+1;
+      b.onclick=function(){ saveCurrent(); state.idx=i; renderQ(); };
+      nav.appendChild(b);
+    });
+  }
+  [...nav.children].forEach(function(b,i){
+    b.classList.toggle("answered", isAnswered(state.list[i], state.answers[i]));
+    b.classList.toggle("cur", i===state.idx);
+  });
+}
+function saveCurrent(){
+  if(!state||state.mode==="practice") return;
+  state.answers[state.idx]=captureAnswer(state.list[state.idx]);
+}
+function isAnswered(q,ans){
+  if(ans===null||ans===undefined) return false;
+  if(q.f==="order") return Array.isArray(ans)&&ans.length===q.items.length;
+  if(q.f==="match") return !!ans&&Object.keys(ans).length===q.left.length;
+  return true;
+}
+function restoreAnswer(q,ans){
+  if(!isAnswered(q,ans)&&(ans===null||ans===undefined)) return;
+  if(q.f==="mc"&&ans!==null&&ans!==undefined){
+    state.pick=ans;
+    const o=document.querySelector('#qpanel .opt[data-i="'+ans+'"]'); if(o)o.classList.add("sel");
+  } else if(q.f==="hotspot"&&ans){
+    state.pick=ans;
+    const z=document.querySelector('#qpanel svg .hz[data-r="'+ans+'"]'); if(z)z.classList.add("sel");
+  } else if(q.f==="order"&&Array.isArray(ans)){
+    state.orderPick=ans.slice(); if(state._refreshOrder)state._refreshOrder();
+  } else if(q.f==="match"&&ans){
+    state.matchPairs=Object.assign({},ans); if(state._refreshMatch)state._refreshMatch();
+  }
+}
+function gradeAnswer(q,ans){
+  if(ans===null||ans===undefined) return false;
+  if(q.f==="mc"||q.f==="hotspot") return ans===q.ans;
+  if(q.f==="order") return JSON.stringify(ans)===JSON.stringify(q.items.map(function(_,i){return i;}));
+  if(q.f==="match") return q.left.every(function(_,li){return ans[li]===li;});
+  return false;
+}
+function firstUnanswered(){
+  for(let i=0;i<state.list.length;i++){ if(!isAnswered(state.list[i],state.answers[i])) return i; }
+  return -1;
+}
+function trySubmitExam(){
+  saveCurrent();
+  const un=state.list.reduce(function(a,q,i){return a+(isAnswered(q,state.answers[i])?0:1);},0);
+  if(un>0 && !confirm("미응답 문항이 "+un+"개 있습니다. 그래도 제출할까요?\n(제출 후에는 수정할 수 없습니다)")) { renderQnav(); return; }
+  if(un===0 && !confirm("답안을 제출할까요? 제출 후에는 수정할 수 없습니다.")) return;
+  state.list.forEach(function(q,i){ state.correct[i]=gradeAnswer(q,state.answers[i]); });
+  finish();
+}
+$("#submitExam").onclick=trySubmitExam;
 
 function wire(q){
   if(q.f==="mc"){
@@ -564,18 +690,26 @@ function renderMatch(q){
 /* ---------- commit / grade ---------- */
 $("#nextBtn").onclick=()=>{
   const q=state.list[state.idx];
-  if(!state.committed){
-    const ok=grade(q);
-    state.correct[state.idx]=ok;state.answers[state.idx]=captureAnswer(q);
-    if(state.mode==="practice"){
+  if(state.mode==="practice"){
+    if(!state.committed){
+      const ok=grade(q);
+      state.correct[state.idx]=ok;state.answers[state.idx]=captureAnswer(q);
       state.committed=true;showFeedback(q,ok);updRevNav();
       $("#nextBtn").textContent=(state.idx===state.list.length-1)?"결과 보기":"다음";
       return;
     }
+    if(state.idx===state.list.length-1){finish();}
+    else{state.idx++;renderQ();}
+    return;
   }
-  // advance
-  if(state.idx===state.list.length-1){finish();}
-  else{state.idx++;renderQ();}
+  /* 시험·모의고사: 채점 없이 저장하고 이동 (제출 시 일괄 채점) */
+  saveCurrent();
+  if(state.idx<state.list.length-1){ state.idx++; renderQ(); }
+  else {
+    const u=firstUnanswered();
+    if(u>=0){ state.idx=u; renderQ(); }
+    else trySubmitExam();
+  }
 };
 function grade(q){
   if(q.f==="mc")return state.pick===q.ans;
@@ -673,6 +807,9 @@ function finish(){if(state.tick)clearInterval(state.tick);renderResults();submit
 function renderResults(){
   $("#quiz").classList.add("hidden");$("#results").classList.remove("hidden");
   const total=state.list.length,got=state.correct.filter(Boolean).length;
+  const modeName=state.mode==="exam"?("시험"+(state.round?" · "+state.round.title:"")):state.mode==="mock"?"연습 모의고사":"도메인 연습";
+  const now=new Date();
+  $("#reportMeta").textContent=(USER?USER.name+" ("+USER.sid+") · ":"")+modeName+" · "+now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0")+" "+String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
   const pct=Math.round(got/total*100);
   $("#scoreNum").innerHTML=got+`<small>/${total}</small>`;
   let v=pct>=90?"실전 응시 준비 완료 ✓":pct>=70?"오답 도메인만 보강 후 응시":pct>=50?"핵심 도메인 재학습 권장":"기초 개념부터 다시";
@@ -702,6 +839,34 @@ function renderResults(){
   $("#retry").style.display=state.round?"none":"";
   window.scrollTo({top:0,behavior:"smooth"});
 }
+/* ---- 리포트 이미지 저장 (실패 시 텍스트 폴백) ---- */
+function reportText(){
+  const total=state.list.length,got=state.correct.filter(Boolean).length;
+  const lines=[$("#reportMeta").textContent,"점수: "+got+"/"+total+" ("+Math.round(got/total*100)+"%)","", "도메인별 정답률:"];
+  const byDom={};
+  state.list.forEach(function(q,i){byDom[q.d]=byDom[q.d]||{n:0,c:0};byDom[q.d].n++;if(state.correct[i])byDom[q.d].c++;});
+  Object.keys(byDom).forEach(function(d){const o=byDom[d];lines.push("  "+DOM[d]+": "+o.c+"/"+o.n);});
+  return lines.join("\n");
+}
+$("#saveReportBtn").onclick=async function(){
+  const btn=$("#saveReportBtn"); btn.disabled=true; const orig=btn.textContent; btn.textContent="저장 중…";
+  const fname="UCA_리포트_"+(USER?USER.sid:"guest")+"_"+new Date().toISOString().slice(0,10);
+  try{
+    if(!window.html2canvas){
+      await new Promise(function(res,rej){const s=document.createElement("script");
+        s.src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+        s.onload=res;s.onerror=rej;document.head.appendChild(s);
+        setTimeout(rej,8000);});
+    }
+    const canvas=await html2canvas(document.getElementById("reportArea"),{backgroundColor:"#0e1017",scale:2});
+    const a=document.createElement("a"); a.href=canvas.toDataURL("image/png"); a.download=fname+".png"; a.click();
+  }catch(e){
+    const blob=new Blob(["\ufeff"+reportText()],{type:"text/plain;charset=utf-8"});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=fname+".txt"; a.click();
+  }
+  btn.disabled=false; btn.textContent=orig;
+};
+
 $("#retry").onclick=()=>startQuiz(shuffle(state.list.slice()),state.mode);
 $("#home").onclick=()=>{$("#results").classList.add("hidden");$("#landing").classList.remove("hidden");window.scrollTo({top:0});};
 $("#quitBtn").onclick=()=>{if(state.tick)clearInterval(state.tick);$("#quiz").classList.add("hidden");$("#landing").classList.remove("hidden");window.scrollTo({top:0});};
@@ -845,6 +1010,7 @@ async function enterDashboard(){
   $("#quiz").classList.add("hidden");
   $("#results").classList.add("hidden");
   $("#landing").classList.add("hidden");
+  $("#guide").classList.add("hidden");
   $("#userbar").classList.remove("hidden");
   $("#ubName").textContent=USER.name+" ("+USER.sid+")";
   $("#dashboard").classList.remove("hidden");
@@ -880,6 +1046,8 @@ function renderDashboard(stu){
   if(revCount) rb.textContent="틀린 문제만 복습 ("+revCount+")";
 }
 $("#goPractice").onclick=function(){$("#dashboard").classList.add("hidden");$("#landing").classList.remove("hidden");window.scrollTo({top:0});};
+$("#guideBtn").onclick=function(){$("#dashboard").classList.add("hidden");$("#guide").classList.remove("hidden");window.scrollTo({top:0});};
+$("#guideBack").onclick=function(){$("#guide").classList.add("hidden");$("#dashboard").classList.remove("hidden");window.scrollTo({top:0});};
 $("#weakBtn").onclick=function(){
   const t=window._weakTargets||[]; if(!t.length)return;
   const pool=Q.filter(function(q){return t.includes(q.d);});
