@@ -8,6 +8,7 @@
  *
  * mode 버킷: 'exam' → 시험 점수, 그 외('practice'/'mock') → 연습 점수
  * v4: 시험 회차(round) — 전원 동일 문항·문항별 답안 저장·관리자 열람
+ * v6: LockService 잠금 — 동시 제출 시 기록 유실 방지
  * ▶ 코드 교체 후: 배포 관리 > (연필) > 버전: 새 버전 > 배포 (URL 유지)
  *************************************************************/
 
@@ -56,8 +57,21 @@ function blankStudent(){
 }
 
 /* ============ 라우팅 ============ */
+/* v6: 쓰기 액션은 스크립트 잠금으로 직렬화 — 동시 제출 시 마지막 저장이
+   앞 저장을 덮어써 기록이 유실되는 문제(치명) 방지 */
 function handle(p){
   const action = p.action || 'ping';
+  const MUTATING = {submit:1, roundCreate:1, roundSet:1, roundDelete:1, studentDelete:1};
+  if (MUTATING[action]){
+    const lock = LockService.getScriptLock();
+    try { lock.waitLock(25000); }
+    catch(e){ return {status:'error', message:'busy'}; }
+    try { return handleAction(p, action); }
+    finally { lock.releaseLock(); }
+  }
+  return handleAction(p, action);
+}
+function handleAction(p, action){
 
   if (action === 'ping') return {status:'ok', ts:new Date().toISOString()};
 

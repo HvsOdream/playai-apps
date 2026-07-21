@@ -274,6 +274,7 @@
         <div class="score-num" id="scoreNum">0<small>/0</small></div>
         <div class="verdict" id="verdict"></div>
       </div>
+      <div class="hint" id="saveStatus" style="text-align:center;font-size:13px"></div>
       <div class="section-label">도메인별 정답률 (약점 진단)</div>
       <div class="dbreak" id="dbreak"></div>
     </div>
@@ -623,7 +624,7 @@ function updRevNav(){
   $("#revLabel").textContent = "문항 "+(state.viewIdx+1)+" / "+state.list.length+(state.viewIdx<state.idx?" · 복습 중":"");
 }
 function goView(i){
-  if(!state) return;
+  if(!state || state.mode!=="practice") return;  /* 시험·모의고사: 되돌아보기 금지(정답 노출 방지) */
   i=Math.max(0, Math.min(i, state.idx));
   state.viewIdx=i;
   if(i===state.idx){
@@ -770,10 +771,22 @@ async function apiMe(sid){
   const j=await jsonp({action:"me",sid:sid});
   return (j&&j.student)||localGet(sid);
 }
+async function jsonpRetry(params, tries){
+  for(let i=0;i<(tries||3);i++){
+    const j=await jsonp(params);
+    if(j) return j;
+    await new Promise(function(r){setTimeout(r, 1200*(i+1));});
+  }
+  return null;
+}
 async function apiSubmit(payload){
   mergeLocal(payload); /* 항상 로컬 미러 갱신 */
-  if(!CONFIG.SYNC_URL) return;
-  await jsonp({action:"submit",payload:JSON.stringify(payload)});
+  return apiSubmitRaw(payload);
+}
+async function apiSubmitRaw(payload){ /* 재전송용: 로컬 미러 중복 반영 없음 */
+  if(!CONFIG.SYNC_URL) return {ok:true, local:true};
+  const j=await jsonpRetry({action:"submit",payload:JSON.stringify(payload)}, 3);
+  return (j && j.status==="ok") ? {ok:true} : {ok:false};
 }
 async function apiBoard(){
   if(!CONFIG.SYNC_URL) return localBoard();
@@ -891,12 +904,42 @@ function submitSession(){
     sess.paper=state.list.map(function(q){return q.qid;}).join(",");
     sess.answers=state.list.map(function(q,i){return {ok:state.correct[i]?1:0,a:compactAns(q,state.answers[i])};});
   }
-  apiSubmit({sid:USER.sid,name:USER.name,session:sess});
+  const payload={sid:USER.sid,name:USER.name,session:sess};
+  mergeLocal(payload);
+  trySave(payload, true);
+}
+/* 저장 시도 + 결과 화면에 확인 표시. 시험은 실패 시 로컬 보관 → 다음 접속 때 자동 재전송 */
+function trySave(payload, first){
+  const st=$("#saveStatus"); const isExam=(payload.session&&payload.session.mode==="exam");
+  if(st){ st.style.color="var(--muted)"; st.textContent=(CONFIG.SYNC_URL?"서버에 기록 저장 중…":""); }
+  (async function(){
+    const r=await apiSubmitRaw(payload);
+    if(r.ok){
+      if(st){ st.style.color="var(--correct)"; st.textContent=r.local?"":"✓ 서버 기록 저장 완료"; }
+      if(isExam){ try{localStorage.removeItem("uca_pending");}catch(e){} }
+    } else {
+      if(isExam){ try{localStorage.setItem("uca_pending",JSON.stringify(payload));}catch(e){} }
+      if(st){
+        st.style.color="var(--wrong)";
+        st.innerHTML='⚠ 서버 저장 실패 — 네트워크 확인 후 다시 시도하세요. <button class="btn mini" id="resendBtn" style="margin-left:6px">다시 저장</button>'+(isExam?'<br><small>이 기기에 답안을 보관했으니, 실패해도 다음 접속 때 자동으로 다시 전송됩니다.</small>':'');
+        const b=document.getElementById("resendBtn");
+        if(b) b.onclick=function(){ b.disabled=true; trySave(payload, false); };
+      }
+    }
+  })();
 }
 
 /* ---- 결과 화면의 홈/그만두기 → 대시보드로 ---- */
 $("#home").onclick=function(){$("#results").classList.add("hidden");enterDashboard();};
 $("#quitBtn").onclick=function(){if(state&&state.tick)clearInterval(state.tick);$("#quiz").classList.add("hidden");enterDashboard();};
+
+/* ---- 미전송 시험 답안 자동 재전송 ---- */
+(async function(){
+  try{
+    const p=JSON.parse(localStorage.getItem("uca_pending"));
+    if(p&&p.sid){ const r=await apiSubmitRaw(p); if(r.ok) localStorage.removeItem("uca_pending"); }
+  }catch(e){}
+})();
 
 /* ---- 자동 로그인 ---- */
 (function(){try{const u=JSON.parse(localStorage.getItem("uca_user"));if(u&&u.sid){USER=u;enterDashboard();}}catch(e){}})();
