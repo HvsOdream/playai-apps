@@ -9,6 +9,7 @@
  * mode 버킷: 'exam' → 시험 점수, 그 외('practice'/'mock') → 연습 점수
  * v4: 시험 회차(round) — 전원 동일 문항·문항별 답안 저장·관리자 열람
  * v6: LockService 잠금 — 동시 제출 시 기록 유실 방지
+ * v8: 일일 자동 백업 · 회차 제한시간(limitMin) · rounds에 확정 문제지 포함
  * ▶ 코드 교체 후: 배포 관리 > (연필) > 버전: 새 버전 > 배포 (URL 유지)
  *************************************************************/
 
@@ -38,7 +39,14 @@ function saveDB(db){
   db._synced = new Date().toISOString();
   const content = JSON.stringify(db, null, 2);
   const ex = findFile(FILE_NAME);
-  if (ex) ex.setContent(content);
+  if (ex){
+    /* v8: 일일 자동 백업 — 덮어쓰기 전 하루 1회 스냅샷 보관 (삭제 실수 대비) */
+    try{
+      const bname = 'backup_' + new Date().toISOString().slice(0,10) + '.json';
+      if (!findFile(bname)) getFolder().createFile(bname, ex.getBlob().getDataAsString(), 'application/json');
+    }catch(e){}
+    ex.setContent(content);
+  }
   else getFolder().createFile(FILE_NAME, content, 'application/json');
 }
 function out(obj, callback){
@@ -106,6 +114,8 @@ function handleAction(p, action){
       const r = db.rounds[id];
       if (!r.open) return;
       list.push({id:id, title:r.title, len:r.len|0, seed:r.seed|0,
+                 limitMin: r.limitMin|0,
+                 paper: r.paper || null,   /* 확정 문제지 — 은행 변경과 무관하게 전원 동일 보장 */
                  done: !!(sid && r.responses && r.responses[sid])});
     });
     list.sort(function(a,b){ return a.id < b.id ? 1 : -1; });
@@ -120,6 +130,7 @@ function handleAction(p, action){
     const seed = Math.floor(Math.random() * 2147483646) + 1;
     db.rounds[id] = {title: String(p.title || '시험 회차').slice(0,60),
                      len: Math.max(1, Math.min(179, parseInt(p.len,10) || 50)),
+                     limitMin: Math.max(0, Math.min(300, parseInt(p.limit,10) || 0)),
                      seed: seed, open: true, created: new Date().toISOString(),
                      paper: null, responses: {}};
     saveDB(db);
@@ -149,7 +160,7 @@ function handleAction(p, action){
     const list = [];
     Object.keys(db.rounds || {}).forEach(function(id){
       const r = db.rounds[id];
-      list.push({id:id, title:r.title, len:r.len|0, open:!!r.open, created:r.created||'',
+      list.push({id:id, title:r.title, len:r.len|0, limitMin:r.limitMin|0, open:!!r.open, created:r.created||'',
                  taken: Object.keys(r.responses||{}).length});
     });
     list.sort(function(a,b){ return a.id < b.id ? 1 : -1; });

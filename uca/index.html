@@ -181,6 +181,7 @@
   <div id="dashboard" class="hidden">
     <div class="eyebrow">내 학습 현황</div>
     <h1 style="font-size:clamp(20px,4vw,26px)">개인 대시보드</h1>
+    <div class="panel hidden" id="resumeBox" style="border-color:var(--amber)"></div>
     <div class="panel">
       <div class="stats" id="dashStats"></div>
       <div class="section-label">약점 도메인 (누적 정답률 낮은 순)</div>
@@ -458,6 +459,13 @@ function blueprintSample(n){
 }
 /* ---- 시험 회차: 시드로 전원 동일한 문제지 생성 ---- */
 function roundPaper(round){
+  /* 서버에 확정 문제지(첫 제출자 기준 qid 목록)가 있으면 그대로 사용 —
+     문제은행이 변경돼도 전원 동일 문제지 보장 */
+  if(round.paper && round.paper.length){
+    const map={}; Q.forEach(function(q){map[q.qid]=q;});
+    const list=round.paper.map(function(id){return map[id];}).filter(Boolean);
+    if(list.length===round.paper.length) return list;
+  }
   const n=Math.min(round.len||50,Q.length);
   const sorted=Q.slice().sort(function(a,b){return a.qid<b.qid?-1:a.qid>b.qid?1:0;});
   if(n>=sorted.length) return sshuffle(sorted,round.seed+":all");
@@ -475,13 +483,18 @@ async function loadRounds(){
   const box=$("#roundChips"), msg=$("#roundMsg");
   box.innerHTML=""; msg.textContent="회차 불러오는 중…"; selRound=null;
   const j=await jsonp({action:"rounds",sid:(USER&&USER.sid)||""});
+  if(!j){ /* 서버 연결 실패 — 회차 없음과 구분 */
+    msg.innerHTML='⚠ 서버 연결에 실패했습니다. 네트워크 확인 후 <button class="btn mini" id="roundRetry">다시 시도</button>';
+    const rb=document.getElementById("roundRetry"); if(rb) rb.onclick=function(){loadRounds();};
+    return;
+  }
   ROUNDS=(j&&j.rounds)||[];
-  if(!ROUNDS.length){ msg.textContent="지금 열려 있는 시험 회차가 없습니다. 관리자에게 문의하세요."; return; }
+  if(!ROUNDS.length){ msg.textContent="지금 열려 있는 시험 회차가 없습니다. 관리자에게 문의하세요. (시험은 관리자가 회차를 연 시간에만 응시할 수 있습니다)"; return; }
   msg.textContent="회차를 선택하고 [시험 시작]을 누르세요. 한 회차는 1회만 응시할 수 있습니다.";
   ROUNDS.forEach(function(r){
     const b=document.createElement("button");
     b.className="chip"; b.setAttribute("aria-pressed","false");
-    b.innerHTML=r.title+"<small>"+r.len+"문항"+(r.done?" · 응시완료":"")+"</small>";
+    b.innerHTML=r.title+"<small>"+r.len+"문항"+(r.limitMin?" · "+r.limitMin+"분":"")+(r.done?" · 응시완료":"")+"</small>";
     if(r.done){ b.disabled=true; b.style.opacity=.45; }
     else b.onclick=function(){ box.querySelectorAll(".chip").forEach(function(x){x.setAttribute("aria-pressed","false");}); b.setAttribute("aria-pressed","true"); selRound=r; };
     box.appendChild(b);
@@ -507,8 +520,24 @@ function startQuiz(list,mode,round){
   if(mode!=="practice"){state.tick=setInterval(updTimer,1000);updTimer();}else{$("#timer").textContent="";}
   renderQ();
 }
-function updTimer(){const s=((Date.now()-state.start)/1000)|0;const m=(s/60|0).toString().padStart(2,"0");
-  $("#timer").textContent=m+":"+(s%60).toString().padStart(2,"0");}
+function updTimer(){
+  const s=((Date.now()-state.start)/1000)|0;
+  if(state.round&&(state.round.limitMin|0)>0){
+    const rem=state.round.limitMin*60-s;
+    if(rem<=0){ if(state.tick)clearInterval(state.tick); autoSubmitTimeout(); return; }
+    $("#timer").textContent="남은 "+String(rem/60|0).padStart(2,"0")+":"+String(rem%60).padStart(2,"0");
+    $("#timer").style.color=rem<300?"var(--wrong)":"";
+    return;
+  }
+  $("#timer").style.color="";
+  $("#timer").textContent=String(s/60|0).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
+}
+function autoSubmitTimeout(){
+  saveCurrent();
+  state.list.forEach(function(q,i){ state.correct[i]=gradeAnswer(q,state.answers[i]); });
+  alert("제한시간이 종료되어 답안이 자동 제출됩니다.");
+  finish();
+}
 
 function renderQ(){
   const q=state.list[state.idx];
@@ -568,7 +597,22 @@ function renderQnav(){
 function saveCurrent(){
   if(!state||state.mode==="practice") return;
   state.answers[state.idx]=captureAnswer(state.list[state.idx]);
+  saveProgress();
 }
+/* ---- 진행 자동저장 (새로고침·이탈 대비, 시험·모의고사) ---- */
+function saveProgress(){
+  if(!state||state.mode==="practice"||!USER) return;
+  try{
+    localStorage.setItem("uca_prog", JSON.stringify({
+      sid:USER.sid, mode:state.mode,
+      round:state.round?{id:state.round.id,title:state.round.title,len:state.round.len,seed:state.round.seed,limitMin:state.round.limitMin|0,paper:state.round.paper||null}:null,
+      qids:state.list.map(function(q){return q.qid;}),
+      answers:state.answers, idx:state.idx,
+      elapsed:Date.now()-state.start, savedAt:Date.now()
+    }));
+  }catch(e){}
+}
+function clearProgress(){ try{localStorage.removeItem("uca_prog");}catch(e){} }
 function isAnswered(q,ans){
   if(ans===null||ans===undefined) return false;
   if(q.f==="order") return Array.isArray(ans)&&ans.length===q.items.length;
@@ -803,7 +847,7 @@ function renderReview(i){
 }
 
 /* ---------- finish / results ---------- */
-function finish(){if(state.tick)clearInterval(state.tick);renderResults();submitSession();}
+function finish(){if(state.tick)clearInterval(state.tick);clearProgress();renderResults();submitSession();}
 function renderResults(){
   $("#quiz").classList.add("hidden");$("#results").classList.remove("hidden");
   const total=state.list.length,got=state.correct.filter(Boolean).length;
@@ -1017,7 +1061,38 @@ async function enterDashboard(){
   const stu=await apiMe(USER.sid);
   if(stu){stu.sid=USER.sid; localSave(stu);}
   renderDashboard(stu||localGet(USER.sid));
+  checkResume();
   window.scrollTo({top:0});
+}
+
+/* ---- 이어풀기: 저장된 진행본 감지·복원 ---- */
+function checkResume(){
+  const el=$("#resumeBox"); el.classList.add("hidden");
+  let p=null;
+  try{ p=JSON.parse(localStorage.getItem("uca_prog")); }catch(e){}
+  if(!p||p.sid!==USER.sid) return;
+  if(Date.now()-(p.savedAt||0)>24*3600*1000){ clearProgress(); return; }
+  const map={}; Q.forEach(function(q){map[q.qid]=q;});
+  const list=(p.qids||[]).map(function(id){return map[id];}).filter(Boolean);
+  if(!list.length||list.length!==p.qids.length){ clearProgress(); return; }
+  const label=(p.mode==="exam"?"시험":"연습 모의고사")+(p.round?" · "+p.round.title:"");
+  const answered=(p.answers||[]).filter(function(a,i){return isAnswered(list[i],a);}).length;
+  el.innerHTML='<b style="color:var(--amber)">⏸ 진행 중이던 '+label+'</b> — '+answered+'/'+list.length+'문항 응답 상태로 저장되어 있습니다.'+
+    '<div class="row" style="margin-top:10px"><button class="btn mini" id="resumeBtn">이어서 풀기</button>'+
+    '<button class="btn ghost mini" id="resumeDrop">삭제</button></div>';
+  el.classList.remove("hidden");
+  $("#resumeBtn").onclick=function(){
+    startQuiz(list, p.mode, p.round);
+    state.answers=(p.answers||[]).slice(0,list.length);
+    while(state.answers.length<list.length)state.answers.push(null);
+    state.idx=Math.min(p.idx|0, list.length-1);
+    state.start=Date.now()-(p.elapsed|0);
+    renderQ();
+  };
+  $("#resumeDrop").onclick=function(){
+    if(!confirm("저장된 진행본을 삭제할까요? 푼 답안이 사라집니다.")) return;
+    clearProgress(); el.classList.add("hidden");
+  };
 }
 function renderDashboard(stu){
   const st=$("#dashStats"), weak=$("#dashWeak");
@@ -1111,7 +1186,14 @@ function trySave(payload, first){
 
 /* ---- 결과 화면의 홈/그만두기 → 대시보드로 ---- */
 $("#home").onclick=function(){$("#results").classList.add("hidden");enterDashboard();};
-$("#quitBtn").onclick=function(){if(state&&state.tick)clearInterval(state.tick);$("#quiz").classList.add("hidden");enterDashboard();};
+$("#quitBtn").onclick=function(){
+  if(state&&state.mode!=="practice"){
+    saveCurrent();
+    if(!confirm("시험을 잠시 중단할까요?\n지금까지의 답안은 이 기기에 저장되며, 대시보드의 [이어서 풀기]로 계속할 수 있습니다.")) return;
+  }
+  if(state&&state.tick)clearInterval(state.tick);
+  $("#quiz").classList.add("hidden");enterDashboard();
+};
 
 /* ---- 미전송 시험 답안 자동 재전송 ---- */
 (async function(){

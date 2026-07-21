@@ -111,6 +111,7 @@
       <div class="toolbar">
         <input id="rTitle" placeholder="회차 이름 (예: 1차 정기시험)" style="flex:1;min-width:160px">
         <input id="rLen" type="number" value="50" min="1" max="179" style="width:84px" title="문항 수">
+        <input id="rLimit" type="number" placeholder="제한(분)" min="0" max="300" style="width:92px" title="제한시간(분) — 비우면 무제한. 종료 시 자동 제출됩니다.">
         <button class="btn mini" id="rCreate">회차 만들기</button>
       </div>
       <div id="rList"></div>
@@ -198,7 +199,7 @@ async function loadRoundList(){
     const d=document.createElement("div");
     d.style.cssText="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 2px;border-bottom:1px solid var(--line);cursor:pointer";
     d.title="클릭하면 회차 상세(응시자·답안지·문항별 정답률)가 열립니다";
-    d.innerHTML='<span style="flex:1;min-width:150px"><b>'+r.title+'</b> <small style="color:var(--faint)">· '+r.len+'문항 · 응시 '+r.taken+'명 · '+(r.open?'<span style="color:var(--correct)">진행중</span>':'<span style="color:var(--faint)">마감</span>')+'</small></span>';
+    d.innerHTML='<span style="flex:1;min-width:150px"><b>'+r.title+'</b> <small style="color:var(--faint)">· '+r.len+'문항'+(r.limitMin?' · '+r.limitMin+'분':'')+' · 응시 '+r.taken+'명 · '+(r.open?'<span style="color:var(--correct)">진행중</span>':'<span style="color:var(--faint)">마감</span>')+'</small></span>';
     d.onclick=function(){showRound(r.id);};
     d.onmouseenter=function(){d.style.background="var(--surface2)";};
     d.onmouseleave=function(){d.style.background="";};
@@ -214,7 +215,8 @@ $("#rCreate").onclick=async function(){
   const t=$("#rTitle").value.trim()||"시험 회차";
   const len=Math.max(1,Math.min(179,parseInt($("#rLen").value,10)||50));
   const b=$("#rCreate"); b.disabled=true;
-  const j=await jsonp({action:"roundCreate",key:ADMINKEY,title:t,len:len});
+  const lim=Math.max(0,Math.min(300,parseInt($("#rLimit").value,10)||0));
+  const j=await jsonp({action:"roundCreate",key:ADMINKEY,title:t,len:len,limit:lim});
   b.disabled=false;
   if(!j||j.status!=="ok"){alert("회차 생성에 실패했습니다. 네트워크를 확인하세요.");return;}
   $("#rTitle").value="";
