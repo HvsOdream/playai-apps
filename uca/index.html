@@ -540,13 +540,6 @@ function loadProg(){ try{return JSON.parse(localStorage.getItem("uca_prog"));}ca
 $("#startExam").onclick=()=>{
   if(examMode==="exam"){
     if(!selRound){alert("응시할 시험 회차를 선택하세요.");return;}
-    /* v5.4: 같은 회차의 진행본이 있으면 [시험 시작]으로 재진입해도 타이머·답안 이어감 */
-    const p=loadProg();
-    if(p && USER && p.sid===USER.sid && p.round && p.round.id===selRound.id){
-      const map={}; Q.forEach(function(q){map[q.qid]=q;});
-      const list=(p.qids||[]).map(function(id){return map[id];}).filter(Boolean);
-      if(list.length===(p.qids||[]).length && list.length>0){ resumeFromProg(p,list); return; }
-    }
     startQuiz(roundPaper(selRound),"exam",selRound);
     return;
   }
@@ -560,6 +553,7 @@ function startQuiz(list,mode,round){
     committed:false,start:Date.now(),tick:null};
   $("#qnav").classList.toggle("hidden",mode==="practice");
   $("#submitExam").classList.toggle("hidden",mode==="practice");
+  $("#quitBtn").classList.toggle("hidden",mode==="exam");  /* v5.5: 시험은 중단 불가 — 이탈 시 자동 제출 */
   $("#landing").classList.add("hidden");$("#dashboard").classList.add("hidden");$("#login").classList.add("hidden");$("#results").classList.add("hidden");$("#quiz").classList.remove("hidden");
   if(mode!=="practice"){state.tick=setInterval(updTimer,1000);updTimer();}else{$("#timer").textContent="";}
   renderQ();
@@ -913,6 +907,7 @@ function renderReview(i){
 
 /* ---------- finish / results ---------- */
 function finish(){
+  state.finished=true;
   if(state.tick)clearInterval(state.tick);
   clearProgress();
   if(state.mode!=="exam"){ try{markSeen(state.list.slice(0,state.idx+1).map(function(q){return q.qid;}));}catch(e){} }
@@ -1116,7 +1111,13 @@ async function doLogin(){
 }
 $("#loginBtn").onclick=doLogin;
 $("#inName").addEventListener("keydown",function(e){if(e.key==="Enter")doLogin();});
-$("#logout").onclick=function(){localStorage.removeItem("uca_user");USER=null;location.reload();};
+$("#logout").onclick=function(){
+  if(state&&state.mode==="exam"&&!state.finished&&!$("#quiz").classList.contains("hidden")){
+    if(!confirm("시험 응시 중입니다. 로그아웃하면 현재 답안으로 자동 제출됩니다. 계속할까요?")) return;
+    examAutoSubmitNow();
+  }
+  localStorage.removeItem("uca_user");USER=null;location.reload();
+};
 
 /* ---- 대시보드 ---- */
 async function enterDashboard(){
@@ -1145,7 +1146,24 @@ function checkResume(){
   const map={}; Q.forEach(function(q){map[q.qid]=q;});
   const list=(p.qids||[]).map(function(id){return map[id];}).filter(Boolean);
   if(!list.length||list.length!==p.qids.length){ clearProgress(); return; }
-  const label=(p.mode==="exam"?"시험":"연습 모의고사")+(p.round?" · "+p.round.title:"");
+  /* v5.5: 시험 진행본은 이어풀기 없이 그 시점 답안으로 자동 제출 확정 */
+  if(p.mode==="exam"){
+    clearProgress();
+    const answers=(p.answers||[]);
+    const correct=list.map(function(q,i){return gradeAnswer(q,answers[i]);});
+    const got=correct.filter(Boolean).length;
+    const payload=buildPayloadFrom(list,answers,correct,"exam",p.round,USER.sid,USER.name);
+    el.innerHTML='<b style="color:var(--amber)">⏱ 중단된 시험 자동 제출</b> — 이전에 진행하다 중단된 시험'+(p.round?' ('+p.round.title+')':'')+'이 당시 답안('+got+'/'+list.length+')으로 자동 제출 처리되었습니다.';
+    el.classList.remove("hidden");
+    (async function(){
+      const r=await apiSubmitRaw(payload);
+      if(!r.ok){ try{localStorage.setItem("uca_pending",JSON.stringify(payload));}catch(e){} }
+      else { try{localStorage.removeItem("uca_pending");}catch(e){} }
+      try{ mergeLocal(payload); }catch(e){}
+    })();
+    return;
+  }
+  const label="연습 모의고사";
   const answered=(p.answers||[]).filter(function(a,i){return isAnswered(list[i],a);}).length;
   el.innerHTML='<b style="color:var(--amber)">⏸ 진행 중이던 '+label+'</b> — '+answered+'/'+list.length+'문항 응답 상태로 저장되어 있습니다.'+
     '<div class="row" style="margin-top:10px"><button class="btn mini" id="resumeBtn">이어서 풀기</button>'+
@@ -1209,23 +1227,49 @@ function compactAns(q,ans){
   if(q.f==="match") return Object.keys(ans).map(function(l){return l+":"+ans[l];}).join(",");
   return "";
 }
-function submitSession(){
-  if(!USER||!state) return;
-  const total=state.list.length, got=state.correct.filter(Boolean).length;
+function buildPayloadFrom(list,answers,correct,mode,round,sid,name){
+  const total=list.length, got=correct.filter(Boolean).length;
   const pct=total?Math.round(got/total*100):0;
   const byDom={}, wq=[], rq=[];
-  state.list.forEach(function(q,i){byDom[q.d]=byDom[q.d]||{n:0,c:0};byDom[q.d].n++;
-    if(state.correct[i]){byDom[q.d].c++; rq.push(q.qid);} else { wq.push(q.qid); }});
-  const sess={mode:state.mode,total:total,got:got,pct:pct,byDom:byDom,wq:wq,rq:rq};
-  if(state.round){
-    sess.round=state.round.id;
-    sess.paper=state.list.map(function(q){return q.qid;}).join(",");
-    sess.answers=state.list.map(function(q,i){return {ok:state.correct[i]?1:0,a:compactAns(q,state.answers[i])};});
+  list.forEach(function(q,i){byDom[q.d]=byDom[q.d]||{n:0,c:0};byDom[q.d].n++;
+    if(correct[i]){byDom[q.d].c++; rq.push(q.qid);} else { wq.push(q.qid); }});
+  const sess={mode:mode,total:total,got:got,pct:pct,byDom:byDom,wq:wq,rq:rq};
+  if(round){
+    sess.round=round.id;
+    sess.paper=list.map(function(q){return q.qid;}).join(",");
+    sess.answers=list.map(function(q,i){return {ok:correct[i]?1:0,a:compactAns(q,answers[i])};});
   }
-  const payload={sid:USER.sid,name:USER.name,session:sess};
+  return {sid:sid,name:name,session:sess};
+}
+function submitSession(){
+  if(!USER||!state) return;
+  const payload=buildPayloadFrom(state.list,state.answers,state.correct,state.mode,state.round,USER.sid,USER.name);
   mergeLocal(payload);
   trySave(payload, true);
 }
+/* ---- v5.5: 시험 이탈 시 자동 제출 ---- */
+function examAutoSubmitNow(){
+  if(!state||state.mode!=="exam"||state.finished||!USER) return;
+  state.finished=true;
+  saveCurrent();
+  state.list.forEach(function(q,i){ state.correct[i]=gradeAnswer(q,state.answers[i]); });
+  const payload=buildPayloadFrom(state.list,state.answers,state.correct,"exam",state.round,USER.sid,USER.name);
+  clearProgress();
+  try{ localStorage.setItem("uca_pending",JSON.stringify(payload)); }catch(e){}  /* 전송 실패 대비 — 서버가 중복 제출은 차단 */
+  try{
+    if(PROXY && navigator.sendBeacon){
+      navigator.sendBeacon(PROXY, new Blob([JSON.stringify({action:"submit",payload:JSON.stringify(payload)})],{type:"text/plain"}));
+    }
+  }catch(e){}
+}
+window.addEventListener("beforeunload",function(e){
+  if(state&&state.mode==="exam"&&!state.finished&&!$("#quiz").classList.contains("hidden")){
+    e.preventDefault(); e.returnValue="시험 응시 중입니다. 나가면 현재 답안으로 자동 제출됩니다.";
+  }
+});
+window.addEventListener("pagehide",function(){
+  if(state&&state.mode==="exam"&&!state.finished&&!$("#quiz").classList.contains("hidden")) examAutoSubmitNow();
+});
 /* 저장 시도 + 결과 화면에 확인 표시. 시험은 실패 시 로컬 보관 → 다음 접속 때 자동 재전송 */
 function trySave(payload, first){
   const st=$("#saveStatus"); const isExam=(payload.session&&payload.session.mode==="exam");
@@ -1250,9 +1294,10 @@ function trySave(payload, first){
 /* ---- 결과 화면의 홈/그만두기 → 대시보드로 ---- */
 $("#home").onclick=function(){$("#results").classList.add("hidden");enterDashboard();};
 $("#quitBtn").onclick=function(){
-  if(state&&state.mode!=="practice"){
+  if(state&&state.mode==="exam") return;  /* 시험은 그만두기 없음 (버튼 숨김 상태) */
+  if(state&&state.mode==="mock"){
     saveCurrent();
-    if(!confirm("시험을 잠시 중단할까요?\n지금까지의 답안은 이 기기에 저장되며, 대시보드의 [이어서 풀기]로 계속할 수 있습니다.")) return;
+    if(!confirm("모의고사를 잠시 중단할까요?\n지금까지의 답안은 이 기기에 저장되며, 대시보드의 [이어서 풀기]로 계속할 수 있습니다.")) return;
   }
   if(state&&state.tick)clearInterval(state.tick);
   $("#quiz").classList.add("hidden");enterDashboard();
