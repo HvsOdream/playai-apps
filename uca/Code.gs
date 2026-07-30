@@ -11,6 +11,7 @@
  * v6: LockService 잠금 — 동시 제출 시 기록 유실 방지
  * v8: 일일 자동 백업 · 회차 제한시간(limitMin) · rounds에 확정 문제지 포함
  * v9: 회차 간 중복 방지 — 직전 2개 응시 회차의 문제지를 회피 목록(avoid)으로
+ * v10: 회피 확대 — 최근 8개 응시 회차 문제지(recent)를 클라이언트가 점진 회피
  * ▶ 코드 교체 후: 배포 관리 > (연필) > 버전: 새 버전 > 배포 (URL 유지)
  *************************************************************/
 
@@ -117,7 +118,8 @@ function handleAction(p, action){
       list.push({id:id, title:r.title, len:r.len|0, seed:r.seed|0,
                  limitMin: r.limitMin|0,
                  paper: r.paper || null,   /* 확정 문제지 — 은행 변경과 무관하게 전원 동일 보장 */
-                 avoid: r.avoid || [],     /* v9: 직전 회차 문항 회피 목록 */
+                 avoid: r.avoid || [],     /* v9: 구버전 호환 */
+                 recent: r.recent || null,  /* v10: 최근 응시 회차 문제지(최신순, 최대 8개) */
                  done: !!(sid && r.responses && r.responses[sid])});
     });
     list.sort(function(a,b){ return a.id < b.id ? 1 : -1; });
@@ -130,15 +132,16 @@ function handleAction(p, action){
     db.rounds = db.rounds || {};
     const id = 'R' + new Date().getTime().toString(36);
     const seed = Math.floor(Math.random() * 2147483646) + 1;
-    /* v9: 학생들이 실제 응시한 직전 2개 회차의 문제지를 회피 목록으로 —
-       새 회차는 그 문항들을 제외하고 출제 (회차 간 중복 방지) */
-    let avoid = [];
-    Object.keys(db.rounds)
+    /* v10: 최근 8개 '실제 응시된' 회차의 문제지를 최신순으로 보관(recent) —
+       클라이언트가 가능한 한 전부 회피하고, 풀이 부족하면 오래된 것부터 허용 */
+    const takenIds = Object.keys(db.rounds)
       .filter(function(k){ return db.rounds[k].paper && db.rounds[k].paper.length; })
       .sort(function(a,b){ return String(db.rounds[b].created).localeCompare(String(db.rounds[a].created)); })
-      .slice(0,2)
-      .forEach(function(k){ avoid = avoid.concat(db.rounds[k].paper); });
-    db.rounds[id] = {avoid: avoid,
+      .slice(0,8);
+    const recent = takenIds.map(function(k){ return db.rounds[k].paper; });
+    let avoid = [];  /* 구버전 클라이언트 호환용: 최근 2개 */
+    recent.slice(0,2).forEach(function(pp){ avoid = avoid.concat(pp); });
+    db.rounds[id] = {recent: recent, avoid: avoid,
                      title: String(p.title || '시험 회차').slice(0,60),
                      len: Math.max(1, Math.min(300, parseInt(p.len,10) || 50)),
                      limitMin: Math.max(0, Math.min(300, parseInt(p.limit,10) || 0)),

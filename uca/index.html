@@ -226,7 +226,7 @@
 
     <div class="section-label">3 · 출제 비중 &amp; 자주 나오는 유형</div>
     <div class="panel" style="font-size:14px;line-height:1.7">
-      이 앱의 300문항은 공식 16개 도메인 비중(블루프린트)에 맞춰 구성되어 있으며, 모든 도메인이 최소 12문항 이상 연습 가능합니다. 특히 아래 영역이 비중이 크고 자주 출제됩니다:<br><br>
+      이 앱의 400문항은 공식 16개 도메인 비중(블루프린트)에 맞춰 구성되어 있으며, 모든 도메인이 최소 13문항 이상 연습 가능합니다. 특히 아래 영역이 비중이 크고 자주 출제됩니다:<br><br>
       · <b>Editor Interface</b> — 각 창(Hierarchy/Inspector/Project/Console/Scene/Game)의 역할, 창 화면에서 위치 찾기(핫스팟형)<br>
       · <b>Programming</b> — 생명주기 순서(Awake→OnEnable→Start→Update), Update vs FixedUpdate, Time.deltaTime, GetComponent<br>
       · <b>Physics</b> — Rigidbody 속성, Collider 종류·성능, isTrigger vs Collision, Raycast<br>
@@ -245,7 +245,7 @@
   <div id="landing" class="hidden">
     <div class="eyebrow">Unity Certified Associate · Game Developer</div>
     <h1>UCA 통합 퀴즈</h1>
-    <div class="sub">16개 공식 도메인 · 300문항 풀 · 4종 형식(객관식·핫스팟·드래그앤드롭·매칭) · 난이도 필터. 부트캠프 문제풀이 훈련용.</div>
+    <div class="sub">16개 공식 도메인 · 400문항 풀 · 4종 형식(객관식·핫스팟·드래그앤드롭·매칭) · 난이도 필터. 부트캠프 문제풀이 훈련용.</div>
 
     <div class="grid3">
       <button class="mode-card" data-mode="practice">
@@ -286,7 +286,7 @@
         <div class="section-label" id="examOptsLabel">회차 길이</div>
         <div class="chips">
           <button class="chip" data-len="50" aria-pressed="true">50문항 · 1회분</button>
-          <button class="chip" data-len="300" aria-pressed="false">300문항 · 전체 풀</button>
+          <button class="chip" data-len="400" aria-pressed="false">400문항 · 전체 풀</button>
         </div>
       </div>
       <div id="roundBox" class="hidden">
@@ -344,7 +344,7 @@
   </div>
 </div>
 
-<script src="bank.js"></script>
+<script src="bank.js?v=57"></script>
 <script>
 /* ---------- domain names ---------- */
 const DOM = {
@@ -410,7 +410,7 @@ function getSeen(){try{return JSON.parse(localStorage.getItem(seenKey()))||[];}c
 function markSeen(qids){
   let s=getSeen();
   qids.forEach(function(id){const i=s.indexOf(id); if(i>=0)s.splice(i,1); s.push(id);});
-  if(s.length>160)s=s.slice(-160);
+  if(s.length>320)s=s.slice(-320);
   try{localStorage.setItem(seenKey(),JSON.stringify(s));}catch(e){}
 }
 function preferUnseen(pool,n){
@@ -492,10 +492,17 @@ function roundPaper(round){
   const n=Math.min(round.len||50,Q.length);
   const sorted=Q.slice().sort(function(a,b){return a.qid<b.qid?-1:a.qid>b.qid?1:0;});
   if(n>=sorted.length) return sshuffle(sorted,round.seed+":all");
-  /* v5.6: 직전 응시 회차 문항(avoid) 제외 — 회차 간 중복 방지 (시드 기반이라 전원 동일 유지) */
-  const av={}; (round.avoid||[]).forEach(function(id){av[id]=1;});
-  let base=sorted.filter(function(q){return !av[q.qid];});
-  if(base.length<n) base=sorted;   /* 회피하고 남는 문항이 부족하면 전체 사용 */
+  /* v5.7: 최근 응시 회차(최대 8개) 문제지를 최대한 회피 — 풀이 부족하면 오래된 회차부터 허용
+     (서버가 회차 생성 시 recent를 고정하므로 전원 동일 문제지 유지) */
+  const papers=(round.recent&&round.recent.length)?round.recent.slice():((round.avoid&&round.avoid.length)?[round.avoid]:[]);
+  let base=sorted, use=papers.length;
+  while(use>=0){
+    const av={};
+    for(let pi=0;pi<use;pi++)(papers[pi]||[]).forEach(function(id){av[id]=1;});
+    const cand=sorted.filter(function(q){return !av[q.qid];});
+    if(cand.length>=n){ base=cand; break; }
+    use--;  /* 가장 오래된(뒤쪽) 회차부터 회피 해제 */
+  }
   const byd={}; base.forEach(function(q){(byd[q.d]=byd[q.d]||[]).push(q);});
   let out=[]; const total=base.length;
   Object.keys(byd).sort().forEach(function(d){
