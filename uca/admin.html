@@ -118,6 +118,23 @@
       <div class="hint">회차를 만들면 학생 MODE3(시험)에 나타나고, 모든 학생이 <b>같은 문제를 같은 순서</b>로 풉니다. 학생당 1회만 응시되며, 마감하면 더 이상 응시할 수 없습니다. 회차 줄을 클릭하면 학생별 답안지·문항별 정답률이 열립니다.</div>
     </div>
 
+    <div class="section-label">쪽지시험 출제 (인쇄용 시험지 · 앱 성적과 무관)</div>
+    <div class="panel">
+      <div class="toolbar">
+        <input id="pqTitle" placeholder="시험명 (예: 8/5 쪽지시험)" style="flex:1;min-width:160px">
+        <input id="pqLen" type="number" value="10" min="1" max="50" style="width:84px" title="문항 수">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);white-space:nowrap"><input type="checkbox" id="pqMcOnly" checked> 객관식만</label>
+        <button class="btn mini" id="pqMake">시험지 만들기</button>
+      </div>
+      <div id="pqDoms" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px"></div>
+      <div class="toolbar" style="margin-top:8px">
+        <button class="btn ghost mini" id="pqAll">전체 선택</button>
+        <button class="btn ghost mini" id="pqNone">전체 해제</button>
+        <span id="pqInfo" style="font-size:12px;color:var(--faint)"></span>
+      </div>
+      <div class="hint">출제 범위(도메인)를 고르고 [시험지 만들기]를 누르면 <b>문제지 + 정답지 HTML 파일 2개</b>가 다운로드됩니다. 파일을 열어 인쇄(Ctrl+P)하면 A4 시험지가 되며, 버튼을 누를 때마다 새 문제로 다시 뽑습니다. <b>종이 시험이므로 앱 성적·통계에는 반영되지 않습니다.</b> "객관식만"을 해제하면 순서·짝맞추기 유형도 지면형으로 함께 출제됩니다(핫스팟 유형은 지면 출제 제외).</div>
+    </div>
+
     <!-- 회차 상세 -->
     <div id="rDetail" class="panel hidden">
       <div class="section-label" style="margin-top:0" id="rDetailTitle">회차 상세</div>
@@ -278,6 +295,88 @@ function showSheet(sid){
   $("#rSheet").innerHTML=h;
 }
 $("#rCloseBtn").onclick=function(){ $("#rDetail").classList.add("hidden"); };
+
+/* ==================== 쪽지시험 (인쇄용 시험지) ==================== */
+const PQ_LABELS_K=["ㄱ","ㄴ","ㄷ","ㄹ","ㅁ","ㅂ","ㅅ","ㅇ"];
+const PQ_CIRC=["①","②","③","④","⑤","⑥","⑦","⑧"];
+function pqEsc(t){return String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function pqShuffle(arr){const a=arr.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function pqPick(domSet,n,mcOnly){
+  const pool=Q.filter(function(q){return domSet[q.d]&&q.f!=="hotspot"&&(!mcOnly||q.f==="mc");});
+  return {picked:pqShuffle(pool).slice(0,n), poolSize:pool.length};
+}
+function pqBuild(title,picked){
+  /* 문제지·정답지 HTML 동시 생성 — order/match는 지면형(기호 기입)으로 변환 */
+  const today=new Date();
+  const dstr=today.getFullYear()+". "+(today.getMonth()+1)+". "+today.getDate()+".";
+  const css='<style>body{font-family:"Malgun Gothic","Apple SD Gothic Neo",sans-serif;max-width:760px;margin:0 auto;padding:28px 20px;color:#111;font-size:13.5px;line-height:1.55}h1{font-size:20px;text-align:center;margin:0 0 4px}.sub{text-align:center;color:#666;font-size:12px;margin-bottom:14px}.idbox{display:flex;gap:18px;justify-content:center;border:1.5px solid #111;padding:9px 14px;margin-bottom:20px;font-size:13px}.q{margin-bottom:16px;page-break-inside:avoid}.qh{font-weight:700;margin-bottom:5px}.dom{font-size:10.5px;color:#888;font-weight:400;margin-left:4px}.opt{margin:2px 0 2px 14px}.itm{margin:2px 0 2px 14px}.blank{color:#111}.cols{display:flex;gap:30px;margin:4px 0 4px 14px}.cols div{flex:1}table{border-collapse:collapse;width:100%;font-size:13px}td,th{border:1px solid #999;padding:6px 8px;text-align:left;vertical-align:top}th{background:#f2f2f2}.pbtn{position:fixed;top:12px;right:12px;padding:8px 16px;font-size:13px;cursor:pointer}@media print{.pbtn{display:none}}@page{margin:18mm 15mm}</style>';
+  let ph='<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>'+pqEsc(title)+' 문제지</title>'+css+'</head><body><button class="pbtn" onclick="window.print()">🖨 인쇄</button>'
+    +'<h1>'+pqEsc(title)+'</h1><div class="sub">Unity Certified Associate 대비 · '+dstr+' · 총 '+picked.length+'문항</div>'
+    +'<div class="idbox"><span>학과: ______________</span><span>학번: ______________</span><span>이름: ______________</span><span>점수: ______ / '+picked.length+'</span></div>';
+  let kh='<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>'+pqEsc(title)+' 정답지</title>'+css+'</head><body><button class="pbtn" onclick="window.print()">🖨 인쇄</button>'
+    +'<h1>'+pqEsc(title)+' — 정답지</h1><div class="sub">'+dstr+' · 총 '+picked.length+'문항 · 관리자 보관용</div>'
+    +'<table><tr><th style="width:44px">번호</th><th style="width:34%">정답</th><th>해설</th></tr>';
+  picked.forEach(function(q,i){
+    const no=(i+1)+'. ';
+    ph+='<div class="q"><div class="qh">'+no+pqEsc(q.q)+'<span class="dom">['+pqEsc(DOM[q.d]||q.d)+']</span></div>';
+    let key='';
+    if(q.f==="mc"){
+      q.opts.forEach(function(o,oi){ph+='<div class="opt">'+(PQ_CIRC[oi]||(oi+1)+')')+' '+pqEsc(o)+'</div>';});
+      key=(PQ_CIRC[q.ans]||(q.ans+1))+' '+pqEsc(q.opts[q.ans]);
+    }else if(q.f==="order"){
+      const idx=pqShuffle(q.items.map(function(_,k){return k;}));
+      idx.forEach(function(oi,k){ph+='<div class="itm">'+PQ_LABELS_K[k]+'. '+pqEsc(q.items[oi])+'</div>';});
+      ph+='<div class="itm blank">순서대로 기호를 쓰시오: ( &nbsp;&nbsp; → &nbsp;&nbsp; → &nbsp;&nbsp; '+(q.items.length>3?'→ &nbsp;&nbsp; ':'')+')</div>';
+      key=q.items.map(function(_,orig){return PQ_LABELS_K[idx.indexOf(orig)];}).join(' → ')+' <span style="color:#666">('+pqEsc(q.items.join(' → '))+')</span>';
+    }else if(q.f==="match"){
+      const idx=pqShuffle(q.right.map(function(_,k){return k;}));
+      ph+='<div class="cols"><div>';
+      q.left.forEach(function(l,k){ph+='<div class="itm">'+(k+1)+'. '+pqEsc(l)+'</div>';});
+      ph+='</div><div>';
+      idx.forEach(function(ri,k){ph+='<div class="itm">'+String.fromCharCode(65+k)+'. '+pqEsc(q.right[ri])+'</div>';});
+      ph+='</div></div><div class="itm blank">짝지으시오: '+q.left.map(function(_,k){return (k+1)+'-(&nbsp;&nbsp;&nbsp;)';}).join(' &nbsp; ')+'</div>';
+      key=q.left.map(function(_,k){return (k+1)+'-'+String.fromCharCode(65+idx.indexOf(k));}).join(', ')+' <span style="color:#666">('+pqEsc(q.left.map(function(l,k){return l+'↔'+q.right[k];}).join(' · '))+')</span>';
+    }
+    ph+='</div>';
+    kh+='<tr><td>'+(i+1)+'</td><td>'+key+'</td><td>'+pqEsc(q.e||'')+'</td></tr>';
+  });
+  ph+='</body></html>'; kh+='</table></body></html>';
+  return {paper:ph, key:kh};
+}
+function pqDownload(name,html){
+  const blob=new Blob([html],{type:"text/html;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;
+  document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(a.href);},1500);
+}
+(function(){
+  const box=$("#pqDoms"); if(!box||typeof Q==="undefined")return;
+  const cnt={}; Q.forEach(function(q){if(q.f!=="hotspot")cnt[q.d]=(cnt[q.d]||0)+1;});
+  Object.keys(DOM).forEach(function(d){
+    const l=document.createElement("label");
+    l.style.cssText="display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:5px 9px;cursor:pointer";
+    l.innerHTML='<input type="checkbox" data-dom="'+d+'" checked> '+DOM[d]+' <span style="color:var(--faint)">'+(cnt[d]||0)+'</span>';
+    box.appendChild(l);
+  });
+  function setAll(v){box.querySelectorAll("input[data-dom]").forEach(function(c){c.checked=v;});}
+  $("#pqAll").onclick=function(){setAll(true);};
+  $("#pqNone").onclick=function(){setAll(false);};
+  $("#pqMake").onclick=function(){
+    const domSet={}; box.querySelectorAll("input[data-dom]:checked").forEach(function(c){domSet[c.dataset.dom]=1;});
+    if(!Object.keys(domSet).length){alert("출제 범위(도메인)를 1개 이상 선택하세요.");return;}
+    const n=Math.max(1,Math.min(50,parseInt($("#pqLen").value,10)||10));
+    const r=pqPick(domSet,n,$("#pqMcOnly").checked);
+    if(!r.picked.length){alert("선택한 범위에 출제 가능한 문항이 없습니다.");return;}
+    const title=($("#pqTitle").value||"쪽지시험").trim()||"쪽지시험";
+    const built=pqBuild(title,r.picked);
+    const fn=title.replace(/[\\/:*?"<>|]/g,"_");
+    pqDownload("UCA_"+fn+"_문제지.html",built.paper);
+    setTimeout(function(){pqDownload("UCA_"+fn+"_정답지.html",built.key);},350);
+    const byd={}; r.picked.forEach(function(q){byd[q.d]=(byd[q.d]||0)+1;});
+    $("#pqInfo").textContent=r.picked.length+"문항 생성 ("
+      +Object.keys(byd).map(function(d){return d+" "+byd[d];}).join(" · ")+")"
+      +(r.picked.length<n?" — 범위 내 문항 부족("+r.poolSize+"개)":"")+" · 다시 누르면 새로 뽑습니다";
+  };
+})();
 
 /* 회차 CSV: 학생 행 + 문항별 O/X */
 $("#rCsvBtn").onclick=function(){
