@@ -5,6 +5,7 @@
  * action: ping | me(sid) | check(sid,name) | board | admin(key) | submit(payload)
  *       | rounds(sid) | roundCreate(key,title,len) | roundSet(key,id,open)
  *       | roundDelete(key,id) | adminRounds(key) | adminRound(key,id)
+ *       | roundRespDelete(key,id,sid)
  *
  * mode 버킷: 'exam' → 시험 점수, 그 외('practice'/'mock') → 연습 점수
  * v4: 시험 회차(round) — 전원 동일 문항·문항별 답안 저장·관리자 열람
@@ -12,6 +13,7 @@
  * v8: 일일 자동 백업 · 회차 제한시간(limitMin) · rounds에 확정 문제지 포함
  * v9: 회차 간 중복 방지 — 직전 2개 응시 회차의 문제지를 회피 목록(avoid)으로
  * v10: 회피 확대 — 최근 8개 응시 회차 문제지(recent)를 클라이언트가 점진 회피
+ * v11: roundRespDelete — 특정 학생의 회차 응시 기록 삭제(재응시 허용, 개인 누적 되돌림)
  * ▶ 코드 교체 후: 배포 관리 > (연필) > 버전: 새 버전 > 배포 (URL 유지)
  *************************************************************/
 
@@ -71,7 +73,7 @@ function blankStudent(){
    앞 저장을 덮어써 기록이 유실되는 문제(치명) 방지 */
 function handle(p){
   const action = p.action || 'ping';
-  const MUTATING = {submit:1, roundCreate:1, roundSet:1, roundDelete:1, studentDelete:1};
+  const MUTATING = {submit:1, roundCreate:1, roundSet:1, roundDelete:1, studentDelete:1, roundRespDelete:1};
   if (MUTATING[action]){
     const lock = LockService.getScriptLock();
     try { lock.waitLock(25000); }
@@ -165,6 +167,37 @@ function handleAction(p, action){
     if (String(p.key) !== String(ADMIN_KEY)) return {status:'error', message:'unauthorized'};
     const db = readDB();
     if (db.rounds && db.rounds[String(p.id)]){ delete db.rounds[String(p.id)]; saveDB(db); }
+    return {status:'ok'};
+  }
+
+  if (action === 'roundRespDelete'){ /* v11: 학생 1명의 응시 기록 삭제 → 재응시 허용 (실수 종료·접속 끊김 구제용) */
+    if (String(p.key) !== String(ADMIN_KEY)) return {status:'error', message:'unauthorized'};
+    const db = readDB();
+    const r = (db.rounds || {})[String(p.id)];
+    if (!r) return {status:'error', message:'no round'};
+    const sid = String(p.sid || '').trim();
+    const resp = (r.responses || {})[sid];
+    if (!resp) return {status:'error', message:'no response'};
+    delete r.responses[sid];
+    /* 개인 누적에서 해당 시험 1회분 되돌림 — 재응시 시 이중 집계 방지 */
+    const s = db.students && db.students[sid];
+    if (s){
+      s.examSessions  = Math.max(0,(s.examSessions|0)-1);
+      s.examQ         = Math.max(0,(s.examQ|0)-(resp.total|0));
+      s.examC         = Math.max(0,(s.examC|0)-(resp.got|0));
+      s.totalSessions = Math.max(0,(s.totalSessions|0)-1);
+      s.totalQ        = Math.max(0,(s.totalQ|0)-(resp.total|0));
+      s.totalC        = Math.max(0,(s.totalC|0)-(resp.got|0));
+      if (s.sessions && s.sessions.length){
+        for (var i = s.sessions.length - 1; i >= 0; i--){
+          var e2 = s.sessions[i];
+          if (e2.mode === 'exam' && (e2.total|0) === (resp.total|0) && (e2.got|0) === (resp.got|0)){
+            s.sessions.splice(i, 1); break;
+          }
+        }
+      }
+    }
+    saveDB(db);
     return {status:'ok'};
   }
 

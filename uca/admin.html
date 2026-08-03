@@ -238,15 +238,27 @@ async function showRound(id){
   }
   const takers=sids.map(function(sid){const o=RDATA.responses[sid];return {sid:sid,name:o.name||sid,got:o.got|0,total:o.total|0,pct:o.pct|0,t:o.t||""};});
   takers.sort(function(a,b){return b.pct-a.pct||b.got-a.got;});
-  let h='<table><thead><tr><th class="num">#</th><th>학번</th><th>이름</th><th class="num">점수</th><th class="num">정답률</th><th>제출</th></tr></thead><tbody>';
+  let h='<table><thead><tr><th class="num">#</th><th>학번</th><th>이름</th><th class="num">점수</th><th class="num">정답률</th><th>제출</th><th></th></tr></thead><tbody>';
   takers.forEach(function(s,i){
     h+='<tr data-sid="'+s.sid+'"><td class="num">'+(i+1)+'</td><td>'+s.sid+'</td><td>'+s.name+'</td><td class="num">'+s.got+'/'+s.total+'</td>'+
        '<td class="num"><span class="pct-pill" style="background:'+pctColor(s.pct)+'22;color:'+pctColor(s.pct)+'">'+s.pct+'%</span></td>'+
-       '<td style="color:var(--faint);font-size:12px">'+fmtTime(s.t)+'</td></tr>';
+       '<td style="color:var(--faint);font-size:12px">'+fmtTime(s.t)+'</td>'+
+       '<td class="num"><button class="btn mini" style="color:var(--wrong)" data-delresp="'+s.sid+'" data-name="'+s.name+'">응시 삭제</button></td></tr>';
   });
-  h+='</tbody></table><div class="hint">행을 클릭하면 그 학생의 답안지(문항별 풀이 내역)가 아래에 표시됩니다.</div>';
+  h+='</tbody></table><div class="hint">행을 클릭하면 그 학생의 답안지(문항별 풀이 내역)가 아래에 표시됩니다. [응시 삭제]는 실수로 창을 닫았거나 접속이 끊긴 학생의 기록을 지워 <b>같은 회차를 다시 응시</b>할 수 있게 합니다.</div>';
   $("#rTakers").innerHTML=h;
   $("#rTakers").querySelectorAll("tr[data-sid]").forEach(function(tr){tr.onclick=function(){showSheet(tr.dataset.sid);};});
+  $("#rTakers").querySelectorAll("[data-delresp]").forEach(function(b){
+    b.onclick=async function(ev){
+      ev.stopPropagation();
+      const sid=b.dataset.delresp, nm=b.dataset.name||sid;
+      if(!confirm(nm+" ("+sid+") 학생의 이 회차 응시 기록을 삭제할까요?\n\n· 답안·점수가 지워지고 개인 통계에서도 이 시험 1회분이 제외됩니다.\n· 삭제 후 해당 학생은 같은 회차를 처음부터 다시 응시할 수 있습니다.\n· 되돌릴 수 없습니다."))return;
+      b.disabled=true; b.textContent="삭제 중…";
+      const j=await jsonp({action:"roundRespDelete",key:ADMINKEY,id:RDATA.id,sid:sid});
+      if(!j||j.status!=="ok"){alert("삭제에 실패했습니다. 네트워크를 확인하세요.");b.disabled=false;b.textContent="응시 삭제";return;}
+      showRound(RDATA.id); loadRoundList(); loadAdmin(ADMINKEY);
+    };
+  });
   /* 문항별 정답률 차트는 화면에서 제거(v4.2) — 데이터는 [회차 결과 CSV]에 포함 */
   $("#rSheet").innerHTML="";
   try{$("#rDetail").scrollIntoView({behavior:"smooth",block:"nearest"});}catch(e){}
