@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>디지털 리터러시 진단 10문항</title>
+<style>
+  :root{
+    --bg:#f4f6f9; --card:#ffffff; --ink:#1c2430; --sub:#5b6878;
+    --line:#e3e8ef; --brand:#2563eb; --brand-soft:#e8efff;
+    --ok:#0f9d58; --ok-soft:#e7f6ee; --no:#d93b3b; --no-soft:#fdecec;
+    --shadow:0 2px 10px rgba(20,30,50,.06);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; padding:32px 16px 80px;
+    background:var(--bg); color:var(--ink);
+    font-family:"KoPubWorld돋움체","KoPubWorldDotum","Malgun Gothic","맑은 고딕",
+                -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    line-height:1.65; -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:800px;margin:0 auto;}
+
+  header{margin-bottom:24px;}
+  h1{font-size:26px;margin:0 0 8px;letter-spacing:-.5px;}
+  .lead{color:var(--sub);font-size:15px;margin:0;}
+  .meta{margin-top:14px;font-size:13px;color:var(--sub);
+        display:flex;gap:8px;flex-wrap:wrap;}
+  .tag{background:var(--brand-soft);color:var(--brand);
+       padding:3px 10px;border-radius:999px;font-weight:700;}
+
+  .bar{position:sticky;top:0;z-index:10;background:var(--bg);
+       padding:10px 0 12px;margin-bottom:8px;}
+  .bar-inner{background:var(--card);border:1px solid var(--line);
+       border-radius:12px;padding:10px 14px;box-shadow:var(--shadow);
+       display:flex;align-items:center;gap:12px;font-size:14px;}
+  .track{flex:1;height:8px;background:var(--line);border-radius:99px;overflow:hidden;}
+  .fill{height:100%;width:0;background:var(--brand);transition:width .3s ease;}
+  .count{font-weight:700;white-space:nowrap;}
+
+  .q{background:var(--card);border:1px solid var(--line);border-radius:14px;
+     padding:22px 22px 18px;margin-bottom:16px;box-shadow:var(--shadow);}
+  .qhead{display:flex;gap:10px;align-items:baseline;margin-bottom:6px;}
+  .qno{font-weight:800;color:var(--brand);font-size:14px;
+       background:var(--brand-soft);border-radius:8px;padding:2px 9px;white-space:nowrap;}
+  .qcat{font-size:12px;color:var(--sub);border:1px solid var(--line);
+        border-radius:99px;padding:1px 9px;}
+  .qtext{font-size:17px;font-weight:700;margin:8px 0 14px;letter-spacing:-.3px;}
+  .scenario{background:#f8fafc;border-left:3px solid var(--line);
+            padding:10px 14px;border-radius:0 8px 8px 0;
+            font-size:14.5px;color:#3a4757;margin:0 0 14px;}
+
+  ul.opts{list-style:none;margin:0;padding:0;}
+  ul.opts li{margin-bottom:8px;}
+  button.opt{
+    width:100%;text-align:left;cursor:pointer;
+    background:#fff;border:1.5px solid var(--line);border-radius:10px;
+    padding:12px 14px;font:inherit;font-size:15px;color:var(--ink);
+    display:flex;gap:10px;align-items:flex-start;
+    transition:border-color .15s, background .15s;
+  }
+  button.opt:hover:not(:disabled){border-color:var(--brand);background:#fafcff;}
+  button.opt:disabled{cursor:default;}
+  .num{font-weight:800;color:var(--sub);min-width:18px;}
+  .opt.correct{border-color:var(--ok);background:var(--ok-soft);}
+  .opt.correct .num{color:var(--ok);}
+  .opt.wrong{border-color:var(--no);background:var(--no-soft);}
+  .opt.wrong .num{color:var(--no);}
+  .mark{margin-left:auto;font-weight:800;font-size:14px;}
+  .opt.correct .mark{color:var(--ok);}
+  .opt.wrong .mark{color:var(--no);}
+
+  .exp{display:none;margin-top:14px;padding:14px 16px;border-radius:10px;
+       background:#f8fafc;border:1px solid var(--line);font-size:14.5px;}
+  .exp.show{display:block;}
+  .exp b{color:var(--brand);}
+  .exp .verdict{display:block;font-weight:800;margin-bottom:6px;font-size:14px;}
+  .exp .verdict.o{color:var(--ok);}
+  .exp .verdict.x{color:var(--no);}
+  .exp .why{margin:8px 0 0;color:var(--sub);font-size:13.5px;}
+
+  #result{display:none;background:var(--card);border:1px solid var(--line);
+          border-radius:14px;padding:28px 24px;text-align:center;
+          box-shadow:var(--shadow);margin-top:8px;}
+  #result.show{display:block;}
+  .score{font-size:42px;font-weight:800;letter-spacing:-1px;margin:6px 0;}
+  .score span{font-size:22px;color:var(--sub);font-weight:700;}
+  .grade{font-size:17px;font-weight:700;margin-bottom:6px;}
+  .comment{color:var(--sub);font-size:14.5px;margin:0 auto;max-width:520px;}
+  .retry{margin-top:20px;background:var(--brand);color:#fff;border:0;
+         border-radius:10px;padding:11px 26px;font:inherit;font-weight:700;
+         font-size:15px;cursor:pointer;}
+  .retry:hover{background:#1d4fd8;}
+
+  footer{margin-top:28px;text-align:center;font-size:12.5px;color:#93a0b0;}
+
+  @media (max-width:520px){
+    body{padding:20px 12px 60px;}
+    h1{font-size:22px;}
+    .q{padding:18px 16px 14px;}
+    .qtext{font-size:16px;}
+    button.opt{font-size:14.5px;padding:11px 12px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>디지털 리터러시 진단 10문항</h1>
+    <p class="lead">직장에서 실제로 마주치는 상황 위주로 골랐습니다. 한 문항씩 고르면 바로 채점되고, 해설이 열립니다.</p>
+    <div class="meta">
+      <span class="tag">정보 검증</span>
+      <span class="tag">보안</span>
+      <span class="tag">개인정보</span>
+      <span class="tag">AI 활용</span>
+      <span class="tag">저작권</span>
+    </div>
+  </header>
+
+  <div class="bar">
+    <div class="bar-inner">
+      <span class="count"><span id="done">0</span> / 10 완료</span>
+      <div class="track"><div class="fill" id="fill"></div></div>
+      <span class="count" id="live">정답 0</span>
+    </div>
+  </div>
+
+  <div id="quiz"></div>
+
+  <div id="result">
+    <div class="grade" id="grade"></div>
+    <div class="score"><span id="sc">0</span><span> / 10</span></div>
+    <p class="comment" id="comment"></p>
+    <button class="retry" onclick="location.reload()">다시 풀기</button>
+  </div>
+
+  <footer>디지털 리터러시 진단 · 직장인 연수용 · 2026</footer>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    cat: "정보 검증",
+    q: "출처를 확인할 때 가장 신뢰도가 높은 것은?",
+    scenario: "카톡 단톡방에 “정부가 다음 달부터 4대보험료를 20% 올린다”는 메시지가 돌고 있습니다. 사실 여부를 확인하려 합니다.",
+    opts: [
+      "메시지를 여러 단톡방에서 봤으니 여러 곳에서 확인된 것으로 본다",
+      "그 내용을 다룬 블로그 글 중 조회수가 가장 높은 글을 읽는다",
+      "댓글에서 “나도 들었다”는 반응이 많은지 본다",
+      "해당 부처·공단의 공식 홈페이지 보도자료를 직접 찾아본다"
+    ],
+    a: 3,
+    exp: "정보의 <b>1차 출처(원 자료)</b>에 도달하는 것이 검증의 기본입니다. 같은 메시지가 여러 곳에서 보이는 건 <b>확산의 증거일 뿐 사실의 증거가 아닙니다</b>. 복사·전달은 원본이 하나여도 무한히 늘어납니다.",
+    why: "이걸 '반복 노출 효과'라고 합니다. 같은 주장을 여러 번 볼수록 사실처럼 느껴지는 인지 편향이죠."
+  },
+  {
+    cat: "보안",
+    q: "이 메일에서 피싱을 의심할 가장 결정적인 단서는?",
+    scenario: "인사팀 발신으로 “연말정산 서류 재제출 마감 오늘 18시”라는 메일이 왔습니다. 첨부파일과 로그인 링크가 함께 있습니다.",
+    opts: [
+      "메일에 오탈자가 하나 있다",
+      "발신자 이름이 '인사팀'으로만 되어 있다",
+      "링크에 마우스를 올렸을 때 표시되는 실제 주소가 회사 도메인이 아니다",
+      "받은 시각이 업무시간 외다"
+    ],
+    a: 2,
+    exp: "발신자 이름·서명·로고는 <b>얼마든지 흉내 낼 수 있습니다</b>. 반면 링크가 실제로 향하는 도메인은 위조하기 어렵습니다. 클릭 전 마우스를 올려(모바일은 길게 눌러) <b>실제 주소</b>를 확인하는 습관이 가장 확실한 방어선입니다.",
+    why: "오탈자·긴급성·업무시간 외 발송도 정황 단서는 되지만, 진짜 메일에도 흔히 나타나므로 결정적이진 않습니다."
+  },
+  {
+    cat: "보안",
+    q: "비밀번호 관리 방식으로 가장 안전한 것은?",
+    opts: [
+      "사이트마다 다른 비밀번호를 쓰되, 비밀번호 관리자와 2단계 인증을 함께 쓴다",
+      "복잡한 비밀번호 하나를 만들어 모든 사이트에 동일하게 쓴다",
+      "기본 비밀번호에 사이트 이름을 붙여 변형해 쓴다 (예: pw!naver, pw!google)",
+      "3개월마다 숫자만 하나씩 올려 바꾼다 (pw01 → pw02)"
+    ],
+    a: 0,
+    exp: "한 사이트가 털리면 같은 아이디·비밀번호로 다른 사이트를 자동 대입하는 <b>크리덴셜 스터핑</b> 공격이 들어옵니다. 그래서 <b>사이트마다 다른 비밀번호</b>가 핵심이고, 그걸 사람이 외울 수 없으니 <b>비밀번호 관리자</b>를 쓰는 겁니다. 여기에 2단계 인증을 더하면 비밀번호가 유출돼도 로그인은 막힙니다.",
+    why: "3번처럼 규칙적으로 변형한 비밀번호는 하나만 유출돼도 규칙이 노출돼 다른 것까지 추측됩니다. 최근 보안 권고는 '주기적 변경'보다 '유출 시 즉시 변경'을 권합니다."
+  },
+  {
+    cat: "개인정보",
+    q: "이 상황에서 가장 먼저 해야 할 조치는?",
+    scenario: "거래처 20곳에 안내 메일을 보내면서, 받는 사람 칸에 20개 메일 주소를 모두 나열해 발송했습니다.",
+    opts: [
+      "아무 문제 없다. 업무용 메일 주소는 개인정보가 아니다",
+      "메일을 회수(회수 기능)하면 문제가 사라지므로 별도 조치는 불필요하다",
+      "다음부터 참조(CC)로 보내면 해결된다",
+      "수신자 전원의 메일 주소가 서로에게 노출된 상황이므로, 사과·안내하고 이후에는 숨은참조(BCC)로 발송한다"
+    ],
+    a: 3,
+    exp: "메일 주소는 <b>개인을 식별할 수 있는 정보</b>이고, 회사·직위와 결합되면 더 그렇습니다. 다수 발송 시에는 반드시 <b>숨은참조(BCC)</b>를 써야 합니다. CC는 여전히 전원에게 공개되므로 해결책이 아닙니다.",
+    why: "메일 회수는 같은 메일 시스템 안에서, 상대가 아직 열지 않았을 때만 부분적으로 동작합니다. 이미 나간 것으로 간주하고 대응하는 편이 안전합니다."
+  },
+  {
+    cat: "AI 활용",
+    q: "생성형 AI가 만든 결과물을 업무에 쓸 때 가장 중요한 원칙은?",
+    opts: [
+      "AI는 최신 데이터를 학습했으므로 수치와 인용은 그대로 신뢰한다",
+      "출처를 물어봤을 때 AI가 링크를 제시하면 검증이 끝난 것으로 본다",
+      "숫자·인용·법령·고유명사는 반드시 원 출처에서 사람이 직접 확인한다",
+      "같은 질문을 두 번 물어 같은 답이 나오면 사실로 확정한다"
+    ],
+    a: 2,
+    exp: "생성형 AI는 <b>그럴듯한 문장을 만드는 도구</b>이지 사실을 조회하는 도구가 아닙니다. 존재하지 않는 논문·판례·통계를 자신 있게 만들어내는 <b>환각(hallucination)</b>이 대표적 한계입니다. 특히 숫자·인용·법령·인명은 사람이 원 출처에서 대조해야 합니다.",
+    why: "AI가 제시한 링크 자체가 만들어진 주소이거나 내용과 무관한 경우도 흔합니다. 같은 답이 반복되는 것도 같은 패턴을 반복할 뿐, 사실의 근거는 아닙니다."
+  },
+  {
+    cat: "AI 활용",
+    q: "AI 챗봇에 입력해서는 안 되는 정보에 가장 가까운 것은?",
+    opts: [
+      "아직 공시하지 않은 실적 수치와 고객 명단이 담긴 내부 문서",
+      "공개된 보도자료를 요약해 달라며 붙여 넣은 기사 본문",
+      "회의 안건 초안을 다듬어 달라며 넣은 일반적인 목차",
+      "영문 이메일 문법을 봐 달라며 넣은 인사말 문장"
+    ],
+    a: 0,
+    exp: "외부 AI 서비스에 넣은 내용은 <b>회사 밖으로 나간 정보</b>로 봐야 합니다. 미공시 실적·고객 명단·계약 조건·개인정보는 유출 시 회복이 불가능하고 법적 책임까지 이어집니다. 사내 정책상 허용된 도구인지, 학습에 사용되지 않도록 설정돼 있는지 먼저 확인해야 합니다.",
+    why: "핵심 기준은 '이 내용이 외부에 공개돼도 괜찮은가'입니다. 답이 '아니오'라면 넣지 않는 게 원칙입니다."
+  },
+  {
+    cat: "저작권",
+    q: "저작권 측면에서 가장 안전한 사용은?",
+    scenario: "사내 교육자료 PPT에 넣을 이미지를 찾고 있습니다.",
+    opts: [
+      "구글 이미지 검색 결과를 저장해 쓴다. 사내용이라 문제되지 않는다",
+      "다른 회사 자료의 이미지를 쓰되 출처만 적어두면 된다",
+      "이미지를 살짝 잘라내고 색을 바꿔 원본과 다르게 만들어 쓴다",
+      "라이선스가 명시된 무료 이미지 사이트에서 받아, 요구된 출처 표기 조건을 지킨다"
+    ],
+    a: 3,
+    exp: "<b>사내용이라도 저작권은 적용됩니다.</b> '비영리'나 '출처 표기'가 만능 면책이 아니라, <b>라이선스가 그 조건을 허용할 때만</b> 유효합니다. 이용 조건이 명시된 소스에서 받아 조건을 지키는 것이 유일하게 안전한 길입니다.",
+    why: "자르거나 색을 바꾼 편집물은 원저작물의 '2차적 저작물'로 볼 수 있어 오히려 권리 침해 범위가 넓어질 수 있습니다."
+  },
+  {
+    cat: "정보 검증",
+    q: "이 통계를 볼 때 가장 먼저 확인해야 할 것은?",
+    scenario: "“설문조사 결과 국민 78%가 이 정책에 찬성”이라는 헤드라인 기사를 봤습니다.",
+    opts: [
+      "78%라는 숫자가 다른 기사에도 똑같이 나오는지",
+      "조사 주체·표본 수·조사 방법·질문 문항이 무엇이었는지",
+      "기사에 전문가 코멘트가 실려 있는지",
+      "기사 하단의 댓글 여론이 78%와 비슷한지"
+    ],
+    a: 1,
+    exp: "설문 결과는 <b>누가, 몇 명에게, 어떻게, 뭐라고 물었는지</b>에 따라 완전히 달라집니다. 특히 질문 문구는 결과를 크게 흔듭니다. 이 네 가지가 밝혀지지 않은 조사는 숫자만 남은 셈입니다.",
+    why: "같은 숫자가 여러 기사에 나오는 건 대개 같은 보도자료를 받아쓴 결과라, 교차검증이 아니라 복제에 가깝습니다."
+  },
+  {
+    cat: "보안",
+    q: "공용 와이파이에서 업무를 볼 때 가장 위험한 행동은?",
+    scenario: "출장 중 카페에서 노트북으로 급한 일을 처리해야 합니다.",
+    opts: [
+      "비밀번호가 걸린 카페 와이파이에 접속해 사내 시스템에 로그인한다 (VPN 미사용)",
+      "휴대폰 테더링으로 연결해 작업한다",
+      "회사에서 지정한 VPN을 켠 뒤 사내 시스템에 접속한다",
+      "와이파이는 켜되 민감 작업은 하지 않고 뉴스만 읽는다"
+    ],
+    a: 0,
+    exp: "카페 와이파이의 비밀번호는 <b>그 자리 모두가 아는 비밀번호</b>라 보호 효과가 거의 없습니다. 같은 망에 있는 사람이 트래픽을 엿보거나, 카페와 같은 이름의 <b>가짜 접속지점</b>을 띄워 접속을 가로챌 수 있습니다. 민감 작업은 테더링이나 VPN을 쓰는 것이 원칙입니다.",
+    why: "요즘은 대부분 HTTPS라 통신 내용이 암호화되지만, 접속 대상·가짜 로그인 페이지 유도 같은 위험은 남습니다."
+  },
+  {
+    cat: "정보 검증",
+    q: "진위를 판단하는 방법으로 가장 적절한 것은?",
+    scenario: "SNS에서 회사 대표가 실언하는 30초 영상을 봤습니다. 화질이 다소 낮고, 원 게시자가 누구인지 불분명합니다.",
+    opts: [
+      "입 모양과 목소리가 자연스러우면 진짜로 판단한다",
+      "해당 발언이 이뤄졌다는 자리·일시를 특정하고, 원본 영상이나 공식 기록이 있는지 찾는다",
+      "일단 팀 단톡방에 공유해 다른 사람들의 판단을 물어본다",
+      "댓글에 조작이라는 반박이 없으면 진짜로 본다"
+    ],
+    a: 1,
+    exp: "합성 영상의 품질은 이미 육안 판별을 넘어섰습니다. 그래서 판단 기준은 '영상이 자연스러운가'가 아니라 <b>'그 일이 실제로 있었다는 독립적 기록이 있는가'</b>로 옮겨가야 합니다. 자리·일시를 특정해 원본이나 다른 각도의 기록을 찾는 것이 핵심입니다.",
+    why: "확인 전 공유는 그 자체로 확산에 가담하는 행위입니다. 특히 사내에서는 명예훼손 문제로 번질 수 있습니다."
+  }
+];
+
+const GRADES = [
+  { min: 9, title: "🏆 우수 — 실무 기준을 잘 갖추셨습니다",
+    msg: "판단 기준이 안정적입니다. 팀 내에서 기준을 공유하는 역할을 맡아도 좋겠습니다." },
+  { min: 7, title: "👍 양호 — 기본기는 충분합니다",
+    msg: "핵심은 잡고 계십니다. 틀린 영역의 해설만 다시 읽어보면 실무에서 흔들릴 일은 거의 없습니다." },
+  { min: 5, title: "📌 보통 — 몇 군데 손볼 곳이 있습니다",
+    msg: "아는 것과 습관 사이에 틈이 있는 상태입니다. 특히 보안·개인정보 문항은 한 번 더 확인해 보세요." },
+  { min: 0, title: "⚠️ 주의 — 기준을 다시 세울 시점입니다",
+    msg: "지금 상태로는 피싱·정보 유출 상황에서 판단이 어려울 수 있습니다. 해설을 처음부터 차근히 읽어보시길 권합니다." }
+];
+
+let done = 0, score = 0;
+const quiz = document.getElementById("quiz");
+
+QUESTIONS.forEach((item, i) => {
+  const box = document.createElement("div");
+  box.className = "q";
+
+  const opts = item.opts.map((t, j) =>
+    `<li><button class="opt" data-q="${i}" data-i="${j}">
+       <span class="num">${j + 1}</span><span class="txt">${t}</span><span class="mark"></span>
+     </button></li>`).join("");
+
+  box.innerHTML = `
+    <div class="qhead">
+      <span class="qno">Q${i + 1}</span>
+      <span class="qcat">${item.cat}</span>
+    </div>
+    <div class="qtext">${item.q}</div>
+    ${item.scenario ? `<p class="scenario">${item.scenario}</p>` : ""}
+    <ul class="opts">${opts}</ul>
+    <div class="exp" id="exp${i}">
+      <span class="verdict"></span>
+      <div>${item.exp}</div>
+      <p class="why">💡 ${item.why}</p>
+    </div>`;
+  quiz.appendChild(box);
+});
+
+quiz.addEventListener("click", (e) => {
+  const btn = e.target.closest("button.opt");
+  if (!btn || btn.disabled) return;
+
+  const qi = +btn.dataset.q, pick = +btn.dataset.i;
+  const item = QUESTIONS[qi];
+  const buttons = btn.closest(".q").querySelectorAll("button.opt");
+  buttons.forEach(b => b.disabled = true);
+
+  const right = pick === item.a;
+  if (right) score++;
+  done++;
+
+  buttons[item.a].classList.add("correct");
+  buttons[item.a].querySelector(".mark").textContent = "정답";
+  if (!right) {
+    btn.classList.add("wrong");
+    btn.querySelector(".mark").textContent = "선택";
+  }
+
+  const exp = document.getElementById("exp" + qi);
+  const verdict = exp.querySelector(".verdict");
+  verdict.textContent = right ? "○ 맞았습니다" : "✕ 아쉽습니다 — 정답은 " + (item.a + 1) + "번";
+  verdict.className = "verdict " + (right ? "o" : "x");
+  exp.classList.add("show");
+
+  document.getElementById("done").textContent = done;
+  document.getElementById("live").textContent = "정답 " + score;
+  document.getElementById("fill").style.width = (done * 10) + "%";
+
+  if (done === QUESTIONS.length) finish();
+});
+
+function finish() {
+  const g = GRADES.find(x => score >= x.min);
+  document.getElementById("grade").textContent = g.title;
+  document.getElementById("sc").textContent = score;
+  document.getElementById("comment").textContent = g.msg;
+  const box = document.getElementById("result");
+  box.classList.add("show");
+  box.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+</script>
+</body>
+</html>
