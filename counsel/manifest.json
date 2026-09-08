@@ -1,0 +1,17 @@
+{
+ "name": "상담노트",
+ "short_name": "상담노트",
+ "start_url": "./",
+ "display": "standalone",
+ "background_color": "#f2f4f6",
+ "theme_color": "#1c5b78",
+ "lang": "ko",
+ "icons": [
+  {
+   "src": "icon.svg",
+   "sizes": "any",
+   "type": "image/svg+xml",
+   "purpose": "any maskable"
+  }
+ ]
+}
