@@ -281,8 +281,14 @@ nav.bottom button.cta{color:var(--accent-ink);background:var(--accent);margin:-1
       <p class="note">코드가 없어도 녹음·받아쓰기·직접 작성·저장은 모두 됩니다. AI가 상담내용 초안을 써주는 기능만 코드가 필요합니다.</p>
     </div>
     <div class="card stack">
+      <h2>기기 간 동기화</h2>
+      <div><label class="f" for="st-sync">동기화 암호</label><input class="i" id="st-sync" type="password" placeholder="본인만 아는 긴 문구 (8자 이상)" autocomplete="off"></div>
+      <div class="row"><button class="btn primary" onclick="saveSettings(false).then(()=>syncNow(true))">저장하고 지금 동기화</button><span class="sub" id="sync-status"></span></div>
+      <p class="note">같은 암호를 넣은 기기끼리 학생 명단·상담 기록이 합쳐집니다(아이패드↔노트북). 기록은 <b>이 기기 안에서 암호화된 뒤</b> 학과 중계 서버에 저장되며, 암호를 모르면 서버 관리자도 내용을 볼 수 없습니다. <b>암호를 잊으면 복구할 수 없으니</b> 안전한 곳에 적어 두세요. 비워 두면 동기화하지 않고 이 기기에만 저장합니다.</p>
+    </div>
+    <div class="card stack">
       <h2>데이터</h2>
-      <p class="note">모든 기록은 <b>이 기기의 브라우저 안에만</b> 저장됩니다. 서버로 전송되지 않으며, 브라우저 데이터를 지우면 함께 삭제됩니다. 정기적으로 백업 파일을 내려받아 두세요.</p>
+      <p class="note">기록은 이 기기의 브라우저 안에 저장되고, 동기화 암호를 설정한 경우에만 암호화된 사본이 서버에 올라갑니다. 브라우저 데이터를 지우면 이 기기의 기록은 삭제되니 백업 파일도 가끔 내려받아 두세요.</p>
       <div class="row">
         <button class="btn grow" onclick="backupAll()">백업 파일 내려받기</button>
         <label class="btn grow" style="cursor:pointer">복원<input type="file" accept=".json" style="display:none" onchange="restoreAll(this)"></label>
@@ -394,31 +400,33 @@ let curStudent=null, curSession=null, sessionFrom='home';
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const todayISO=()=>{const d=new Date();return new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
 
+let tombstones=[];
 const local={
-  load(){ try{students=JSON.parse(localStorage.getItem('cn.students')||'[]');sessions=JSON.parse(localStorage.getItem('cn.sessions')||'[]')}catch(e){students=[];sessions=[]} },
-  save(){ try{localStorage.setItem('cn.students',JSON.stringify(students));localStorage.setItem('cn.sessions',JSON.stringify(sessions))}catch(e){} }
+  load(){ try{students=JSON.parse(localStorage.getItem('cn.students')||'[]');sessions=JSON.parse(localStorage.getItem('cn.sessions')||'[]');tombstones=JSON.parse(localStorage.getItem('cn.deleted')||'[]')}catch(e){students=[];sessions=[];tombstones=[]} },
+  save(){ try{localStorage.setItem('cn.students',JSON.stringify(students));localStorage.setItem('cn.sessions',JSON.stringify(sessions));localStorage.setItem('cn.deleted',JSON.stringify(tombstones.slice(-500)))}catch(e){} scheduleSync(); }
 };
+function tomb(type,id){ tombstones.push({type,id,at:new Date().toISOString()}); }
 async function putStudent(s){
   if(db){ await db.doc('students/'+s.id).set(s); }
-  else { const i=students.findIndex(x=>x.id===s.id); i<0?students.push(s):students[i]=s; local.save(); renderAll(); }
+  else { s.updatedAt=new Date().toISOString(); const i=students.findIndex(x=>x.id===s.id); i<0?students.push(s):students[i]=s; local.save(); renderAll(); }
 }
 async function putSession(s){
   if(db){ await db.doc('sessions/'+s.id).set(s); }
-  else { const i=sessions.findIndex(x=>x.id===s.id); i<0?sessions.push(s):sessions[i]=s; local.save(); renderAll(); }
+  else { s.updatedAt=new Date().toISOString(); const i=sessions.findIndex(x=>x.id===s.id); i<0?sessions.push(s):sessions[i]=s; local.save(); renderAll(); }
 }
 async function delSession(id){
   if(db){ await db.doc('sessions/'+id).delete(); }
-  else { sessions=sessions.filter(x=>x.id!==id); local.save(); renderAll(); }
+  else { tomb('session',id); sessions=sessions.filter(x=>x.id!==id); local.save(); renderAll(); }
 }
 async function delStudent(id){
   const own=sessions.filter(s=>s.studentId===id);
   if(db){ await db.doc('students/'+id).delete(); for(const s of own) await db.doc('sessions/'+s.id).delete(); }
-  else { students=students.filter(x=>x.id!==id); sessions=sessions.filter(x=>x.studentId!==id); local.save(); renderAll(); }
+  else { tomb('student',id); own.forEach(x=>tomb('session',x.id)); students=students.filter(x=>x.id!==id); sessions=sessions.filter(x=>x.studentId!==id); local.save(); renderAll(); }
 }
 
 /* ================= settings / AI ================= */
 const DEFAULT_WORKER=''; // 옆의 config.json {"worker":"https://…workers.dev"} 에서 자동으로 읽습니다
-let settings={prof:'',dept:'',code:'',url:DEFAULT_WORKER};
+let settings={prof:'',dept:'',code:'',url:DEFAULT_WORKER,syncpass:''};
 function loadSettings(){ try{ Object.assign(settings,JSON.parse(localStorage.getItem('cn.settings')||'{}')); }catch(e){} if(!settings.url) settings.url=DEFAULT_WORKER; applySettings(); }
 function applySettings(){
   document.getElementById('brandsub').textContent=[settings.dept,settings.prof?settings.prof+' 교수':''].filter(Boolean).join(' · ')||'지도교수 상담 기록';
@@ -429,13 +437,13 @@ function applySettings(){
 }
 function renderSettings(){
   document.getElementById('st-prof').value=settings.prof||''; document.getElementById('st-dept').value=settings.dept||'';
-  document.getElementById('st-code').value=settings.code||''; document.getElementById('st-url').value=settings.url||'';
+  document.getElementById('st-code').value=settings.code||''; document.getElementById('st-url').value=settings.url||''; document.getElementById('st-sync').value=settings.syncpass||'';
   document.getElementById('st-count').textContent=`학생 ${students.length}명 · 상담 기록 ${sessions.length}건`;
   document.getElementById('st-status').textContent='';
 }
 async function saveSettings(check){
   settings.prof=document.getElementById('st-prof').value.trim(); settings.dept=document.getElementById('st-dept').value.trim();
-  settings.code=document.getElementById('st-code').value.trim(); settings.url=(document.getElementById('st-url').value.trim()||DEFAULT_WORKER).replace(/\/+$/,'');
+  settings.code=document.getElementById('st-code').value.trim(); settings.url=(document.getElementById('st-url').value.trim()||DEFAULT_WORKER).replace(/\/+$/,''); settings.syncpass=document.getElementById('st-sync').value;
   try{ localStorage.setItem('cn.settings',JSON.stringify(settings)); }catch(e){}
   applySettings(); const st=document.getElementById('st-status');
   if(check&&settings.code&&settings.url){
@@ -456,6 +464,57 @@ const remoteSample=Object.assign(async(p)=>({text:await remoteSampleText(p)}),{
     try{ return JSON.parse(body.slice(a,b+1)); }catch(e){ const err=new Error('응답을 해석할 수 없습니다'); err.code='invalid_json'; err.text=t; throw err; } }
 });
 
+/* ================= sync (E2E encrypted) ================= */
+const SYNC_MIN=8;
+let syncTimer=null, syncing=false, syncCrypto=null;
+const b64=u8=>btoa(String.fromCharCode(...u8)); const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function deriveSync(pass){
+  if(syncCrypto&&syncCrypto.pass===pass) return syncCrypto;
+  const enc=new TextEncoder();
+  const base=await crypto.subtle.importKey('raw',enc.encode(pass),'PBKDF2',false,['deriveKey']);
+  const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:enc.encode('counsel-note-sync-v1'),iterations:120000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+  const idb=await crypto.subtle.digest('SHA-256',enc.encode('counsel-note-id-v1:'+pass));
+  syncCrypto={pass,key,id:[...new Uint8Array(idb)].map(b=>b.toString(16).padStart(2,'0')).join('')}; return syncCrypto;
+}
+async function encryptBlob(key,obj){ const iv=crypto.getRandomValues(new Uint8Array(12)); const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(JSON.stringify(obj)))); return b64(iv)+'.'+b64(ct); }
+async function decryptBlob(key,blob){ const [iv,ct]=blob.split('.'); const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(iv)},key,unb64(ct)); return JSON.parse(new TextDecoder().decode(pt)); }
+const stamp=x=>x.updatedAt||x.createdAt||'';
+function mergeState(a,b){
+  const tombs=[...(a.tombstones||[]),...(b.tombstones||[])]; const tmap=new Map(); for(const t of tombs){ const k=t.type+':'+t.id; if(!tmap.has(k)||tmap.get(k).at<t.at) tmap.set(k,t); }
+  const pick=(type,xs)=>{ const m=new Map(); for(const x of xs){ if(!x||!x.id) continue; const t=tmap.get(type+':'+x.id); if(t&&t.at>=stamp(x)) continue; const cur=m.get(x.id); if(!cur||stamp(cur)<stamp(x)) m.set(x.id,x); } return [...m.values()]; };
+  const st=pick('student',[...(a.students||[]),...(b.students||[])]);
+  const ids=new Set(st.map(x=>x.id));
+  const se=pick('session',[...(a.sessions||[]),...(b.sessions||[])]).filter(x=>ids.has(x.studentId));
+  return {students:st,sessions:se,tombstones:[...tmap.values()].sort((x,y)=>x.at.localeCompare(y.at)).slice(-500)};
+}
+function syncStatus(msg,kind){ const el=document.getElementById('sync-status'); if(el){ el.textContent=msg; el.style.color=kind==='bad'?'var(--rec)':''; } const d=document.getElementById('dbtext'); if(d&&kind==='ok') d.textContent='AI 연결 · 동기화됨'; }
+function scheduleSync(){ if(!settings.syncpass) return; clearTimeout(syncTimer); syncTimer=setTimeout(()=>syncNow(false),2500); }
+async function syncNow(manual){
+  if(!settings.syncpass||!settings.url||!settings.code){ if(manual) syncStatus(!settings.syncpass?'동기화 암호를 입력하세요':'접속 코드와 중계 서버가 필요합니다','bad'); return; }
+  if(settings.syncpass.length<SYNC_MIN){ syncStatus(`암호는 ${SYNC_MIN}자 이상이어야 합니다`,'bad'); return; }
+  if(syncing){ scheduleSync(); return; } syncing=true; syncStatus('동기화 중…');
+  try{
+    const {key,id}=await deriveSync(settings.syncpass);
+    const call=async body=>{ const r=await fetch(settings.url+'/sync',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code:settings.code,id,...body})}); const j=await r.json().catch(()=>({})); return {status:r.status,j}; };
+    let {status,j}=await call({op:'get'}); if(status!==200) throw new Error(j.error||('HTTP '+status));
+    for(let attempt=0;attempt<3;attempt++){
+      let remote={students:[],sessions:[],tombstones:[]};
+      if(j.blob){ try{ remote=await decryptBlob(key,j.blob); }catch(e){ syncStatus('동기화 암호가 서버의 기록과 다릅니다. 처음 설정한 암호를 입력하세요.','bad'); return; } }
+      const merged=mergeState({students,sessions,tombstones},remote);
+      students=merged.students; sessions=merged.sessions; tombstones=merged.tombstones;
+      try{localStorage.setItem('cn.students',JSON.stringify(students));localStorage.setItem('cn.sessions',JSON.stringify(sessions));localStorage.setItem('cn.deleted',JSON.stringify(tombstones));}catch(e){}
+      renderAll(); if(document.getElementById('v-settings').classList.contains('active')) document.getElementById('st-count').textContent=`학생 ${students.length}명 · 상담 기록 ${sessions.length}건`;
+      const blob=await encryptBlob(key,{v:1,students,sessions,tombstones,at:new Date().toISOString()});
+      const put=await call({op:'put',baseRev:j.rev||0,blob});
+      if(put.status===200){ syncStatus('동기화됨 · '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}),'ok'); return; }
+      if(put.status===409){ j=put.j; continue; }
+      throw new Error(put.j.error||('HTTP '+put.status));
+    }
+    throw new Error('충돌이 반복됩니다. 잠시 후 다시 시도하세요');
+  }catch(e){ syncStatus('동기화 실패: '+(e.message||e),'bad'); }
+  finally{ syncing=false; }
+}
+
 /* ================= backup / restore ================= */
 function downloadBlob(name,text,type='text/plain'){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type:type+';charset=utf-8'})); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500); }
 function backupAll(){ downloadBlob(`상담노트_백업_${todayISO()}.json`,JSON.stringify({v:2,exportedAt:new Date().toISOString(),prof:settings.prof,dept:settings.dept,students,sessions},null,1),'application/json'); toast('백업 파일을 내려받았습니다'); }
@@ -468,7 +527,7 @@ function restoreAll(inp){
     local.save(); renderAll(); renderSettings(); toast('복원됨'); }catch(e){ toast('백업 파일 형식이 아닙니다'); } inp.value=''; };
   rd.readAsText(f);
 }
-function wipeAll(){ if(!confirm('이 기기의 학생 명단과 상담 기록을 모두 삭제할까요? 되돌릴 수 없습니다.')) return; if(!confirm('정말 삭제합니다. 백업 파일은 받아두셨나요?')) return; students=[];sessions=[]; local.save(); renderAll(); renderSettings(); toast('삭제됨'); }
+function wipeAll(){ if(!confirm('이 기기의 학생 명단과 상담 기록을 모두 삭제할까요? 동기화 중이면 다른 기기에서도 삭제됩니다. 되돌릴 수 없습니다.')) return; if(!confirm('정말 삭제합니다. 백업 파일은 받아두셨나요?')) return; students.forEach(x=>tomb('student',x.id)); sessions.forEach(x=>tomb('session',x.id)); students=[];sessions=[]; local.save(); renderAll(); renderSettings(); toast('삭제됨'); }
 
 /* ================= roster import ================= */
 function parseRoster(text){
@@ -503,6 +562,7 @@ async function doImport(){
 
 async function initCaps(){ local.load(); loadSettings(); renderAll(); if(!students.length&&!settings.prof) go('settings');
   try{ const r=await fetch('config.json',{cache:'no-store'}); if(r.ok){ const c=await r.json(); if(c.worker&&!settings.url){ settings.url=String(c.worker).replace(/\/+$/,''); applySettings(); } } }catch(e){}
+  if(settings.syncpass) syncNow(false);
 }
 window.addEventListener('DOMContentLoaded',()=>{ document.getElementById('n-date').value=todayISO(); document.getElementById('n-time').value=nowHM(); initCaps(); });
 
