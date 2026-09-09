@@ -479,7 +479,7 @@ async function saveSettings(check){
   } else st.textContent='저장됨';
 }
 async function remoteSampleText(prompt){
-  const r=await fetch(settings.url+'/generate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code:settings.code,prompt})});
+  const r=await fetch(settings.url+'/generate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code:settings.code,prompt,prof:settings.prof||'',dept:settings.dept||''})});
   const j=await r.json().catch(()=>({}));
   if(!r.ok){ const e=new Error(j.error||('HTTP '+r.status)); e.code=r.status===401?'not_granted':r.status===429?'rate_limited':'error'; throw e; }
   return j.text||'';
