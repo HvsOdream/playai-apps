@@ -411,7 +411,26 @@ const local={
   load(){ try{students=JSON.parse(localStorage.getItem('cn.students')||'[]');sessions=JSON.parse(localStorage.getItem('cn.sessions')||'[]');tombstones=JSON.parse(localStorage.getItem('cn.deleted')||'[]')}catch(e){students=[];sessions=[];tombstones=[]} },
   save(){ try{localStorage.setItem('cn.students',JSON.stringify(students));localStorage.setItem('cn.sessions',JSON.stringify(sessions));localStorage.setItem('cn.deleted',JSON.stringify(tombstones.slice(-500)))}catch(e){} scheduleSync(); }
 };
-function tomb(type,id){ tombstones.push({type,id,at:new Date().toISOString()}); }
+function tomb(type,id,extra){ tombstones.push(Object.assign({type,id,at:new Date().toISOString()},extra||{})); }
+const cleanSid=v=>String(v||'').replace(/[^0-9A-Za-z]/g,'');
+function findBySid(sid,exceptId){ const k=cleanSid(sid); if(!k) return null; return students.find(x=>x.id!==exceptId&&cleanSid(x.sid)===k)||null; }
+// 학번은 고유번호 — 같은 학번이 여러 명으로 나뉘어 있으면 하나로 합친다(상담 기록도 함께 옮김)
+function mergeDupStudents(){
+  const by=new Map(); let merged=0;
+  for(const s of students){ const k=cleanSid(s.sid); if(!k) continue; (by.get(k)||by.set(k,[]).get(k)).push(s); }
+  for(const [,group] of by){
+    if(group.length<2) continue;
+    group.sort((a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
+    const keep=group[0];
+    for(const dup of group.slice(1)){
+      for(const f of ['name','grade','dept','tags','note']) if(!keep[f]&&dup[f]) keep[f]=dup[f];
+      sessions.forEach(x=>{ if(x.studentId===dup.id){ x.studentId=keep.id; x.updatedAt=new Date().toISOString(); } });
+      tomb('student',dup.id,{into:keep.id}); students=students.filter(x=>x.id!==dup.id); merged++;
+    }
+    keep.updatedAt=new Date().toISOString();
+  }
+  return merged;
+}
 async function putStudent(s){
   if(db){ await db.doc('students/'+s.id).set(s); }
   else { s.updatedAt=new Date().toISOString(); const i=students.findIndex(x=>x.id===s.id); i<0?students.push(s):students[i]=s; local.save(); renderAll(); }
@@ -490,7 +509,9 @@ function mergeState(a,b){
   const pick=(type,xs)=>{ const m=new Map(); for(const x of xs){ if(!x||!x.id) continue; const t=tmap.get(type+':'+x.id); if(t&&t.at>=stamp(x)) continue; const cur=m.get(x.id); if(!cur||stamp(cur)<stamp(x)) m.set(x.id,x); } return [...m.values()]; };
   const st=pick('student',[...(a.students||[]),...(b.students||[])]);
   const ids=new Set(st.map(x=>x.id));
-  const se=pick('session',[...(a.sessions||[]),...(b.sessions||[])]).filter(x=>ids.has(x.studentId));
+  // 학번 중복으로 합쳐진 학생을 가리키는 상담은 버리지 않고 합쳐진 쪽으로 옮긴다
+  const into=id=>{ let cur=id; for(let i=0;i<10;i++){ const t=tmap.get('student:'+cur); if(!t||!t.into) break; cur=t.into; } return cur; };
+  const se=pick('session',[...(a.sessions||[]),...(b.sessions||[])]).map(x=>{ const n=into(x.studentId); return n===x.studentId?x:{...x,studentId:n}; }).filter(x=>ids.has(x.studentId));
   return {students:st,sessions:se,tombstones:[...tmap.values()].sort((x,y)=>x.at.localeCompare(y.at)).slice(-500)};
 }
 function syncStatus(msg,kind){ const el=document.getElementById('sync-status'); if(el){ el.textContent=msg; el.style.color=kind==='bad'?'var(--rec)':''; } const d=document.getElementById('dbtext'); if(d&&kind==='ok') d.textContent='AI 연결 · 동기화됨'; }
@@ -508,6 +529,7 @@ async function syncNow(manual){
       if(j.blob){ try{ remote=await decryptBlob(key,j.blob); }catch(e){ syncStatus('동기화 암호가 서버의 기록과 다릅니다. 처음 설정한 암호를 입력하세요.','bad'); return; } }
       const merged=mergeState({students,sessions,tombstones},remote);
       students=merged.students; sessions=merged.sessions; tombstones=merged.tombstones;
+      mergeDupStudents();
       try{localStorage.setItem('cn.students',JSON.stringify(students));localStorage.setItem('cn.sessions',JSON.stringify(sessions));localStorage.setItem('cn.deleted',JSON.stringify(tombstones));}catch(e){}
       renderAll(); if(document.getElementById('v-settings').classList.contains('active')) document.getElementById('st-count').textContent=`학생 ${students.length}명 · 상담 기록 ${sessions.length}건`;
       const blob=await encryptBlob(key,{v:1,students,sessions,tombstones,at:new Date().toISOString()});
@@ -568,7 +590,9 @@ async function doImport(){
 
 async function initCaps(){
   if(new URLSearchParams(location.search).get('reset')==='1'){ if(confirm('이 기기의 상담노트 데이터와 설정을 모두 지울까요?')){ ['cn.students','cn.sessions','cn.deleted','cn.settings'].forEach(k=>localStorage.removeItem(k)); } history.replaceState(null,'',location.pathname); }
-  local.load(); loadSettings(); renderAll(); if(!students.length&&!settings.prof) go('settings');
+  local.load(); loadSettings();
+  if(mergeDupStudents()) local.save();
+  renderAll(); if(!students.length&&!settings.prof) go('settings');
   try{ const r=await fetch('config.json',{cache:'no-store'}); if(r.ok){ const c=await r.json(); if(c.worker&&!settings.url){ settings.url=String(c.worker).replace(/\/+$/,''); applySettings(); } } }catch(e){}
   if(settings.syncpass) syncNow(false);
 }
@@ -662,7 +686,14 @@ function openStudentSheet(id){
 function closeSheet(){document.getElementById('sheet').classList.remove('open')}
 async function saveStudentSheet(){
   const name=document.getElementById('sh-name').value.trim(); if(!name){toast('이름을 입력하세요');return}
-  const s=Object.assign(sheetId?students.find(x=>x.id===sheetId):{id:uid(),createdAt:new Date().toISOString()},{name,sid:document.getElementById('sh-sid').value.trim(),grade:document.getElementById('sh-grade').value,dept:document.getElementById('sh-dept').value,tags:document.getElementById('sh-tags').value,note:document.getElementById('sh-note').value.trim()});
+  const sid=document.getElementById('sh-sid').value.trim();
+  const same=findBySid(sid,sheetId);
+  if(same){ // 학번이 같은 학생이 이미 있음 — 새로 만들지 않고 그 학생 정보를 갱신
+    if(!confirm(`학번 ${sid} 은(는) 이미 「${same.name}」 학생으로 등록돼 있습니다.\n[확인] 그 학생 정보를 수정 / [취소] 학번을 다시 입력`)) return;
+    Object.assign(same,{name,sid,grade:document.getElementById('sh-grade').value,dept:document.getElementById('sh-dept').value,tags:document.getElementById('sh-tags').value,note:document.getElementById('sh-note').value.trim()});
+    await putStudent(same); closeSheet(); if(curStudent===sheetId) curStudent=same.id; toast('기존 학생 정보로 저장됨'); return;
+  }
+  const s=Object.assign(sheetId?students.find(x=>x.id===sheetId):{id:uid(),createdAt:new Date().toISOString()},{name,sid,grade:document.getElementById('sh-grade').value,dept:document.getElementById('sh-dept').value,tags:document.getElementById('sh-tags').value,note:document.getElementById('sh-note').value.trim()});
   await putStudent(s); closeSheet(); toast('저장됨');
 }
 async function deleteStudent(){
@@ -733,7 +764,15 @@ async function resolveStudent(){
   if(sel.value==='__new'){
     const name=document.getElementById('n-name').value.trim(); if(!name){toast('학생 이름을 입력하세요');return null}
     const raw=document.getElementById('n-sid').value.trim(); const m=raw.match(/([1-3])\s*학년/);
-    const s={id:uid(),name,sid:raw.replace(/[·,]?\s*[1-3]\s*학년/,'').trim(),grade:m?m[1]+'학년':'',dept:settings.dept||'',tags:'',note:'',createdAt:new Date().toISOString()};
+    const sid=raw.replace(/[·,]?\s*[1-3]\s*학년/,'').trim();
+    // 학번이 같으면 이미 등록된 학생 — 새로 만들지 않고 그 학생의 기록에 이어 붙인다
+    const same=findBySid(sid);
+    if(same){ if(!same.grade&&m) same.grade=m[1]+'학년'; await putStudent(same); toast(`이미 등록된 학생입니다 · ${same.name} 기록에 이어서 저장합니다`); return same.id; }
+    if(!sid){
+      const byName=students.filter(x=>x.name===name);
+      if(byName.length===1 && confirm(`이미 「${name}」 학생이 있습니다.\n[확인] 그 학생의 상담 이력에 이어서 저장 / [취소] 동명이인으로 새로 등록`)) return byName[0].id;
+    }
+    const s={id:uid(),name,sid,grade:m?m[1]+'학년':'',dept:settings.dept||'',tags:'',note:'',createdAt:new Date().toISOString()};
     await putStudent(s); return s.id;
   }
   if(!sel.value){toast('학생을 선택하세요');return null}
