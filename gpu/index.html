@@ -55,6 +55,25 @@
   button.btn.warn:hover{background:#fdece8}
   .hidden{display:none !important}
 
+  /* 학과장 승인 */
+  .step.chair{border-color:var(--navy);box-shadow:0 1px 5px rgba(46,90,172,.15);cursor:pointer}
+  .step.chair .n{background:var(--navy)}
+  .step.chair .t em{color:var(--navy);font-weight:700}
+  .step .cnt{margin-left:2px;background:#c9553d;color:#fff;font-size:10.5px;font-weight:800;border-radius:10px;padding:0 7px;line-height:17px}
+  .st.approved{background:#e3ecfb;color:var(--navy)} .st.rejected{background:#fdece8;color:#c9553d}
+  .pill.apv{background:#e3ecfb;color:var(--navy)}
+  .modal.wide{width:min(760px,94vw);max-height:88vh;overflow:auto}
+  .modal.wide h4{display:flex;align-items:center;gap:10px}
+  .apv-item{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#fbfcfe}
+  .apv-item .hd{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+  .apv-item .hd b{font-size:14px}
+  .apv-item .dl{font-size:12.5px;color:#33415a;margin-top:6px;line-height:1.6}
+  .apv-item .note{font-size:12px;color:var(--mut);margin-top:4px;white-space:pre-wrap}
+  .apv-item .act{display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap}
+  .apv-item .act input{flex:1;min-width:160px;font:inherit;font-size:12.5px;padding:6px 8px;border:1px solid #c7d0de;border-radius:8px;margin:0}
+  .apv-empty{color:var(--mut);font-size:13px;padding:10px 0}
+  .apv-done{font-size:12px;color:var(--mut);margin:6px 0 10px}
+
   h2.sec{font-size:16px;font-weight:800;margin:28px 0 13px;padding-left:11px;border-left:4px solid var(--navy);
     display:flex;align-items:center;gap:10px}
   h2.sec .hint{font-size:11.5px;font-weight:600;color:var(--warn)}
@@ -149,7 +168,7 @@
       <span class="cloud-status" id="cloudStatus">클라우드 확인 중…</span>
     </div>
     <div class="adminbar">
-      <button class="btn" id="loginBtn" onclick="openLogin()">🔒 관리자</button>
+      <button class="btn" id="loginBtn" onclick="openLogin()">🔒 조교 관리</button>
       <button class="btn solid hidden" id="saveBtn" onclick="saveToCloud()">☁ 저장</button>
       <button class="btn hidden" id="logoutBtn" onclick="exitAdmin()">완료</button>
     </div>
@@ -160,9 +179,9 @@
     <ol class="steps">
       <li class="step link"><a href="./apply/"><span class="n">1</span><span class="t">사용 계획서 제출<em>신청기관 · 양식 열기 →</em></span></a></li>
       <li class="arr">›</li>
-      <li class="step"><span class="n">2</span><span class="t">학과장 승인<em>학과장</em></span></li>
+      <li class="step chair" id="chairStep" onclick="openChair()"><span class="n">2</span><span class="t">학과장 승인<em>학과장 · 승인/반려 처리 →</em></span><span class="cnt hidden" id="chairCnt">0</span></li>
       <li class="arr">›</li>
-      <li class="step"><span class="n">3</span><span class="t">사용시간 입력<em>조교</em></span></li>
+      <li class="step"><span class="n">3</span><span class="t">사용시간 입력<em>조교 · 조교 관리 모드</em></span></li>
       <li class="arr">›</li>
       <li class="step"><span class="n">4</span><span class="t">조교 승인<em>조교</em></span></li>
       <li class="arr">›</li>
@@ -199,7 +218,7 @@
   </table>
   <div class="foot">
     <span class="k">■ 범례</span> &nbsp; <span class="pill rev">신청중</span> 검토 중 &nbsp;
-    <span class="pill asn">배정</span> 배정 완료 &nbsp; <span class="pill chk">확인필요</span> 기존 이용·시간대 미확인 &nbsp;
+    <span class="pill apv">승인</span> 학과장 승인 &nbsp; <span class="pill asn">배정</span> 배정 완료 &nbsp; <span class="pill chk">확인필요</span> 기존 이용·시간대 미확인 &nbsp;
     <span style="color:#aab2bd">□</span> 여유
   </div>
 
@@ -216,18 +235,41 @@
   <div class="foot">
     ※ 이용시간대는 <b>평일·주말 각각 오전(09~13)·오후(13~18)·야간(18~24)</b>으로 구분해 배정합니다.<br>
     ※ 1회 배정 이용기간은 <b>6개월 이내</b>이며, 종료일 미기재 신청은 접수되지 않습니다. (운영규정 제7조)<br>
-    ※ 시간표 각 칸에는 <b>이용자 · 이용기간(시작~종료)</b>이 함께 표시됩니다. 관리자 모드에서 칸을 눌러 배정하면 기간이 자동으로 따라붙습니다.
+    ※ 신청 흐름: <b>접수</b>(신청서 제출) → <b>승인/반려</b>(학과장, 상단 2단계 버튼) → <b>배정</b>(조교, 조교 관리 모드에서 시간표 배정). 시간표 각 칸에는 <b>이용자 · 이용기간(시작~종료)</b>이 함께 표시됩니다.
   </div>
 </div>
 
 <!-- 로그인 모달 -->
 <div class="modal-bg hidden" id="loginModal">
   <div class="modal">
-    <h4>🔒 관리자 로그인</h4>
-    <input type="password" id="pinInput" placeholder="관리자 PIN" onkeydown="if(event.key==='Enter')doLogin()">
+    <h4>🔒 조교(관리자) 로그인</h4>
+    <input type="password" id="pinInput" placeholder="조교 PIN" onkeydown="if(event.key==='Enter')doLogin()">
     <div class="row">
       <button class="btn" onclick="closeLogin()">취소</button>
       <button class="btn solid" onclick="doLogin()">로그인</button>
+    </div>
+  </div>
+</div>
+
+<!-- 학과장 로그인 모달 -->
+<div class="modal-bg hidden" id="chairLoginModal">
+  <div class="modal">
+    <h4>🪪 학과장 로그인</h4>
+    <input type="password" id="chairPin" placeholder="학과장 PIN" onkeydown="if(event.key==='Enter')doChairLogin()">
+    <div class="row">
+      <button class="btn" onclick="closeChairLogin()">취소</button>
+      <button class="btn solid" onclick="doChairLogin()">로그인</button>
+    </div>
+  </div>
+</div>
+
+<!-- 학과장 승인 모달 -->
+<div class="modal-bg hidden" id="chairModal">
+  <div class="modal wide">
+    <h4>🪪 학과장 승인 <span class="proc-sub" id="chairSub"></span></h4>
+    <div id="chairList"></div>
+    <div class="row">
+      <button class="btn" onclick="closeChair()">닫기</button>
     </div>
   </div>
 </div>
@@ -239,6 +281,8 @@ const CLOUD_URL = "https://script.google.com/macros/s/AKfycbxkobPk9_Cg5589mlR5f6
 const PROXY = "https://playai-api.withsky0.workers.dev/gpu"; /* 중계 서버(Cloudflare) — script.google.com 차단/로그인 요구 우회 */
 // 관리자 PIN — Apps Script의 WRITE_PIN 과 반드시 동일하게.
 const ADMIN_PIN = "7399";
+// 학과장 PIN — 조교 PIN과 별도. 승인/반려 패널 전용(저장은 ADMIN_PIN으로 백엔드에 전달).
+const CHAIR_PIN = "7570";
 
 /* ===================== 고정 정의 ===================== */
 const SLOTS = [
@@ -277,6 +321,9 @@ const SEED = {
 /* ===================== 상태 ===================== */
 let STATE = JSON.parse(JSON.stringify(SEED));
 let adminMode = false;
+let chairAuthed = false;
+const isPending = a => a.status==='접수' || a.status==='검토중';
+const esc = v => String(v==null?'':v).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 /* ===================== 유틸 ===================== */
 const appByNo = no => STATE.applications.find(a=>a.no===no);
@@ -288,7 +335,8 @@ function periodText(a){
 function statusPill(a){
   if(!a) return "";
   if(String(a.status).startsWith("배정")) return `<span class="pill asn">배정</span>`;
-  if(a.status==="검토중") return `<span class="pill rev">신청중</span>`;
+  if(a.status==="승인") return `<span class="pill apv">승인</span>`;
+  if(isPending(a)) return `<span class="pill rev">신청중</span>`;
   return `<span class="pill chk">${a.status}</span>`;
 }
 function assignedGPU(serverId){
@@ -333,7 +381,7 @@ function render2Week(){
       const no=(STATE.assignments[slotId]||{})[CUR_TAB]||null;
       const a=no?appByNo(no):null;
       if(a && inPeriod(dt,a)){
-        const tag = a.status==='검토중' ? '<small>신청중</small>' : (String(a.status).startsWith('배정')?'<small>배정</small>':'<small>'+a.status+'</small>');
+        const tag = isPending(a) ? '<small>신청중</small>' : (String(a.status).startsWith('배정')?'<small>배정</small>':'<small>'+a.status+'</small>');
         return `<td class="band"><span class="cal-occ">${a.who}${tag}</span></td>`;
       }
       return `<td class="band"><span class="cal-free">□</span></td>`;
@@ -354,8 +402,9 @@ function render(){
   renderGrid();
   renderApps();
   renderPendNote();
+  renderChairBadge();
   // 모드 표시
-  document.getElementById('modeBadge').textContent = adminMode ? "관리자 모드" : "조회 모드";
+  document.getElementById('modeBadge').textContent = adminMode ? "조교 관리 모드" : "조회 모드";
   document.getElementById('modeBadge').className = "badge " + (adminMode?"admin":"ro");
   document.getElementById('gridHint').textContent = adminMode ? "칸을 선택해 이용자를 배정/해제하세요" : "";
   document.getElementById('appHint').textContent = adminMode ? "값을 직접 수정할 수 있습니다" : "";
@@ -387,7 +436,7 @@ function renderGrid(){
       const a = no ? appByNo(no) : null;
       if(adminMode){
         // 해당 서버를 희망한 신청건만 후보로
-        const cands = STATE.applications.filter(x=>x.server===sv.id);
+        const cands = STATE.applications.filter(x=>x.server===sv.id && x.status!=='반려');
         const opts = ['<option value="">— 비움 —</option>']
           .concat(cands.map(x=>`<option value="${x.no}" ${x.no===no?'selected':''}>${x.who} (${x.no})</option>`))
           .join('');
@@ -410,7 +459,7 @@ function renderGrid(){
 
 function renderApps(){
   document.getElementById('apps').innerHTML = STATE.applications.map((a,i)=>{
-    const st = String(a.status).startsWith("배정") ? 'assigned':'review';
+    const st = String(a.status).startsWith("배정") ? 'assigned' : a.status==='승인' ? 'approved' : a.status==='반려' ? 'rejected' : 'review';
     if(adminMode){
       const svOpts = SERVERS.map(s=>`<option value="${s.id}" ${s.id===a.server?'selected':''}>${s.name}</option>`).join('');
       return `<tr>
@@ -422,7 +471,7 @@ function renderApps(){
         <td><input class="inp" type="date" value="${a.start}" onchange="editApp(${i},'start',this.value)"></td>
         <td><input class="inp" type="date" value="${a.end}" onchange="editApp(${i},'end',this.value)"></td>
         <td class="c"><select class="inp" onchange="editApp(${i},'status',this.value)">
-          ${['검토중','접수','배정','배정(기존)','연장','종료','반려'].map(s=>`<option ${s===a.status?'selected':''}>${s}</option>`).join('')}
+          ${['접수','승인','반려','배정','배정(기존)','연장','종료','검토중'].map(s=>`<option ${s===a.status?'selected':''}>${s}</option>`).join('')}
         </select></td>
         <td class="c rowtools"><button class="linkbtn" onclick="delApp(${i})">삭제</button></td>
       </tr>`;
@@ -430,7 +479,7 @@ function renderApps(){
     return `<tr>
       <td>${a.no}</td><td><b>${a.who}</b></td><td>${a.kind}</td><td>${svById(a.server)?svById(a.server).name:a.server}</td>
       <td class="c">${a.gpu||'—'}</td><td>${a.start||'—'}</td><td>${a.end||'—'}</td>
-      <td class="c"><span class="st ${st}">${a.status}</span></td>
+      <td class="c"><span class="st ${st}" title="${esc(a.note||'')}">${a.status}</span></td>
       <td class="c admincol hidden"></td>
     </tr>`;
   }).join('');
@@ -536,18 +585,74 @@ function loadFromCloud(attempt){
   });
 }
 
-function saveToCloud(){
-  if(!CLOUD_URL){ alert('CLOUD_URL이 설정되지 않아 로컬에서만 편집됩니다.\nApps Script 배포 후 URL을 넣어주세요.'); return; }
+function saveToCloud(cb){
+  if(!CLOUD_URL){ alert('CLOUD_URL이 설정되지 않아 로컬에서만 편집됩니다.\nApps Script 배포 후 URL을 넣어주세요.'); if(cb) cb(false); return; }
   setCloud('☁ 저장 중…', '');
   jsonp({action:'save', pin:ADMIN_PIN, payload:JSON.stringify(STATE)}, (j)=>{
+    let ok = false;
     if(j && j.status==='ok'){
+      ok = true;
       setCloud('☁ 저장됨 · ' + (j.synced?new Date(j.synced).toLocaleString('ko-KR'):''), 'ok');
     } else if(j && j.message==='unauthorized'){
       setCloud('☁ 저장 실패(PIN 불일치)', 'err');
     } else {
       setCloud('☁ 저장 실패', 'err');
     }
+    if(cb) cb(ok);
   });
+}
+
+/* ===================== 학과장 승인 ===================== */
+function pendingApps(){ return STATE.applications.filter(isPending); }
+function renderChairBadge(){
+  const n = pendingApps().length;
+  const el = document.getElementById('chairCnt');
+  el.textContent = n; el.classList.toggle('hidden', n===0);
+}
+function openChair(){
+  if(chairAuthed){ showChair(); return; }
+  document.getElementById('chairLoginModal').classList.remove('hidden');
+  document.getElementById('chairPin').focus();
+}
+function closeChairLogin(){ document.getElementById('chairLoginModal').classList.add('hidden'); document.getElementById('chairPin').value=''; }
+function doChairLogin(){
+  if(document.getElementById('chairPin').value === CHAIR_PIN){ chairAuthed=true; closeChairLogin(); showChair(); }
+  else { alert('학과장 PIN이 올바르지 않습니다.'); }
+}
+function showChair(){ renderChair(); document.getElementById('chairModal').classList.remove('hidden'); }
+function closeChair(){ document.getElementById('chairModal').classList.add('hidden'); }
+function renderChair(msg){
+  const pend = pendingApps();
+  const nA = STATE.applications.filter(a=>a.status==='승인').length;
+  const nR = STATE.applications.filter(a=>a.status==='반려').length;
+  document.getElementById('chairSub').textContent = msg || ('— 승인 대기 ' + pend.length + '건');
+  const list = pend.map(a=>{
+    const i = STATE.applications.indexOf(a);
+    const sv = svById(a.server) ? svById(a.server).name : (a.server||'—');
+    return `<div class="apv-item">
+      <div class="hd"><b>${esc(a.who)||'(기관명 없음)'}</b><span class="st review">${esc(a.status)}</span></div>
+      <div class="dl">${esc(a.kind)||'—'} · ${esc(sv)} · GPU ${esc(a.gpu)||'—'}기 · ${esc(a.start)||'—'} ~ ${esc(a.end)||'—'}${a.no?' · '+esc(a.no):''}</div>
+      ${a.note?`<div class="note">${esc(a.note)}</div>`:''}
+      <div class="act">
+        <input id="rj${i}" placeholder="반려 사유 (반려 시 입력)">
+        <button class="btn solid" onclick="chairDecide(${i},'승인')">✔ 승인</button>
+        <button class="btn warn" onclick="chairDecide(${i},'반려')">✖ 반려</button>
+      </div>
+    </div>`;
+  }).join('') || '<div class="apv-empty">승인 대기 중인 신청이 없습니다.</div>';
+  document.getElementById('chairList').innerHTML =
+    `<div class="apv-done">처리 완료 · 승인 ${nA}건 · 반려 ${nR}건 — 승인된 건은 조교가 시간표에 배정합니다.</div>` + list;
+}
+function chairDecide(i, decision){
+  const a = STATE.applications[i]; if(!a) return;
+  const inp = document.getElementById('rj'+i);
+  const reason = inp ? inp.value.trim() : '';
+  if(decision==='반려' && !reason){ alert('반려 사유를 입력해 주세요.'); if(inp) inp.focus(); return; }
+  const stamp = new Date().toISOString().slice(0,10);
+  a.status = decision;
+  a.note = (a.note ? a.note + '\n' : '') + '[학과장 ' + decision + ' ' + stamp + ']' + (reason ? ' ' + reason : '');
+  render(); renderChair('— ☁ 저장 중…');
+  saveToCloud(ok=>{ renderChair(ok ? '— ☁ 저장됨 · 승인 대기 ' + pendingApps().length + '건' : '— ⚠ 저장 실패: 네트워크 확인 후 다시 시도'); });
 }
 
 /* ===================== 시작 ===================== */
