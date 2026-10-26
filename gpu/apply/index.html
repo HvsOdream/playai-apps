@@ -24,6 +24,9 @@
   .usage .g{font-weight:800;color:var(--navy)}
   .usage .occ{color:#c9553d;font-weight:800} .usage .pen{color:#b07a1a;font-weight:800} .usage .free{color:#9aa4b2}
   .usage .leg{font-size:10.5px;color:var(--mut);margin-top:6px}
+  .usage table.weeks{margin-top:6px} .usage table.weeks td.sv{white-space:nowrap}
+  .usage table.booked{margin-top:6px} .usage table.booked th{background:#f3f5f9;font-weight:600}
+  .usage table.booked tr.sel td{background:#fff6e6}
   .steps{list-style:none;display:flex;flex-wrap:wrap;align-items:stretch;gap:6px}
   .step{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 13px}
   .step .n{width:23px;height:23px;border-radius:50%;background:#c3cee0;color:#fff;font-size:12.5px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -179,7 +182,7 @@
       <div class="usage" id="usage">
         <div class="ut">📊 현재 사용 현황 <small id="usageSub">불러오는 중…</small></div>
         <div id="usageBody"></div>
-        <div class="leg">칸 1개 = GPU 1장 · ■ 배정됨 · ▲ 신청·승인 대기 · □ 여유 — 여유 시간대와 잔여 GPU를 참고해 희망 서버·시간대를 고르면 배정이 빠릅니다. (이용 기관명은 표시하지 않습니다)</div>
+        <div class="leg">칸 1개 = GPU 1장 · ■ 배정됨 · ▲ 신청·승인 대기 · □ 여유. 주별 표는 희망 서버를 바꾸면 따라 바뀝니다. 비는 주·시간대에 맞춰 시작일과 시간대를 잡으면 배정이 빠릅니다. (이용 기관명은 표시하지 않습니다)</div>
       </div>
       <div class="fld">
         <label class="lb">프로젝트명 / 이용 목적<span class="req">*</span></label>
@@ -317,7 +320,35 @@ function renderUsage(data){
     return `<tr${id===sel?' style="outline:2px solid #f0c27a"':''}><td class="sv${id===sel?' sel':''}">${SV_NAME[id]}</td>
       <td><span class="g">${free}</span>/${total}${pend?` <span class="pen" title="신청·승인 대기 GPU">(대기 ${pend})</span>`:''}</td><td>${cells}</td></tr>`;
   }).join('');
-  body.innerHTML = `<table><thead><tr><th>서버</th><th>잔여 GPU</th>${SLOT_COLS.map(([,l])=>`<th>${l}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>`;
+  // 배정 내역(기관명 비공개): 언제 자리가 비는지 볼 수 있게 이용기간·시간대 표시
+  const slotOf = a => SLOT_COLS.filter(([k])=>{ const v=(asg[k]||{})[a.server]; const nos=!v?[]:(Array.isArray(v)?v:[v]); return nos.includes(a.no); }).map(([,l])=>l);
+  const shortSlots = ls => { if(ls.length===6) return '전 시간대'; const wd=ls.filter(l=>l.startsWith('평일')).map(l=>l.slice(3)), we=ls.filter(l=>l.startsWith('주말')).map(l=>l.slice(3)); const f=(n,a)=>a.length?n+' '+(a.length===3?'전체':a.join('·')):''; return [f('평일',wd),f('주말',we)].filter(Boolean).join(' / ')||'—'; };
+  const booked = apps.filter(a=>live(a)&&isAsg(a)).sort((a,b)=>((b.server===sel)-(a.server===sel))||String(a.end).localeCompare(String(b.end)));
+  const detail = booked.length ? `<table class="booked"><thead><tr><th>서버</th><th>GPU</th><th>이용기간</th><th>시간대</th></tr></thead><tbody>${
+    booked.map((a,i)=>`<tr${a.server===sel?' class="sel"':''}><td>${SV_NAME[a.server]||a.server}</td><td>${a.gpu||'?'}</td><td>${a.start||'?'} ~ <b>${a.end||'?'}</b></td><td style="text-align:left">${shortSlots(slotOf(a))}</td></tr>`).join('')
+  }</tbody></table>` : '';
+  // 앞으로 2개월(9주) · 선택 서버: 주별 × 시간대 GPU 점유 → 비는 주에 맞춰 시작일을 잡을 수 있게
+  const total = SV_TOTAL[sel]||0;
+  const d0 = new Date(); d0.setHours(0,0,0,0); d0.setDate(d0.getDate() - ((d0.getDay()+6)%7)); // 이번 주 월요일
+  const fmt = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const md = d => (d.getMonth()+1)+'/'+d.getDate();
+  const weekRows = [];
+  for(let w=0; w<9; w++){
+    const ws = new Date(d0); ws.setDate(d0.getDate()+w*7); const we = new Date(ws); we.setDate(ws.getDate()+6);
+    const wsS = fmt(ws), weS = fmt(we);
+    const inWeek = a => a.start && a.end && a.start <= weS && a.end >= wsS;
+    const cells = SLOT_COLS.map(([k])=>{
+      const v = (asg[k]||{})[sel]; const nos = !v ? [] : (Array.isArray(v) ? v : [v]);
+      const list = nos.map(no=>apps.find(x=>x.no===no)).filter(a=>a && isAsg(a) && inWeek(a));
+      const g = list.reduce((s,a)=>s+(parseInt(a.gpu,10)||0),0);
+      const cu = Math.min(g,total), cf = Math.max(0,total-cu);
+      return `<td title="배정 ${g}/${total}" style="letter-spacing:1px"><span class="occ">${'■'.repeat(cu)}</span><span class="free">${'□'.repeat(cf)}</span>${g>total?'<span class="occ">!</span>':''}</td>`;
+    }).join('');
+    weekRows.push(`<tr><td class="sv" style="font-weight:600">${w===0?'이번 주':(w+1)+'주차'} <span style="color:var(--mut);font-weight:400">${md(ws)}~${md(we)}</span></td>${cells}</tr>`);
+  }
+  const weekly = `<div class="ut" style="margin-top:10px">📅 앞으로 2개월 · ${SV_NAME[sel]} <small>주별 GPU 점유 (배정 확정분)</small></div>
+    <table class="weeks"><thead><tr><th>주</th>${SLOT_COLS.map(([,l])=>`<th>${l}</th>`).join('')}</tr></thead><tbody>${weekRows.join('')}</tbody></table>`;
+  body.innerHTML = `<table><thead><tr><th>서버</th><th>잔여 GPU</th>${SLOT_COLS.map(([,l])=>`<th>${l}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>` + weekly + detail;
   const n = apps.filter(a=>live(a)&&isPen(a)).length;
   sub.textContent = (data._synced?new Date(data._synced).toLocaleDateString('ko-KR')+' 기준':'') + (n?` · 처리 대기 ${n}건`:'');
 }

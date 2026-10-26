@@ -110,6 +110,9 @@
   .occ-name{font-weight:700;color:#9a5a1c;font-size:12.5px}
   .occ-item{padding:3px 0;border-top:1px dashed #e8d9c4} .occ-item:first-child{border-top:0}
   .cell-gpu{font-size:10.5px;color:#7a5a2e;margin-top:4px} .cell-gpu.over{color:#c9553d;font-weight:800}
+  .gbox{letter-spacing:2px;font-size:13px;line-height:1} .gbox .on{color:#c47a1e} .gbox .off{color:#c3cad4} .gbox .ov{color:#c9553d}
+  .cell .gbox{display:block;margin-bottom:2px} .cell.free-cell .gbox{margin:0}
+  .card .gbox{font-size:16px;letter-spacing:3px;margin:2px 0 6px}
   .cand{display:flex;align-items:center;gap:5px;font-size:11.5px;text-align:left;padding:2px 0;white-space:nowrap}
   .cand input{margin:0}
   .cand .g{color:var(--mut);font-size:10.5px}
@@ -362,6 +365,11 @@ function cellList(slotId, svId){
 function cellListOf(v){ if(!v) return []; return Array.isArray(v) ? v.filter(Boolean) : [v]; }
 function cellApps(slotId, svId){ return cellList(slotId, svId).map(appByNo).filter(Boolean); }
 function cellGPU(slotId, svId){ return cellApps(slotId, svId).reduce((s,a)=>s+(parseInt(a.gpu,10)||0),0); }
+// GPU 1장 = 칸 1개 (■ 배정 · □ 여유 · 초과분은 빨간 ■)
+function gpuBoxes(used, total){
+  const u = Math.min(used,total), over = Math.max(0, used-total);
+  return `<span class="gbox"><span class="on">${'■'.repeat(u)}</span><span class="off">${'□'.repeat(Math.max(0,total-u))}</span>${over?`<span class="ov">${'■'.repeat(over)}</span>`:''}</span>`;
+}
 let DIRTY = false;
 function markDirty(){ DIRTY = true; updateSavebar(); }
 function updateSavebar(){
@@ -467,6 +475,7 @@ function renderCards(){
     return `<div class="card">
       <h3>${s.name}</h3><div class="loc">📍 ${s.loc}</div>
       <div class="gpu-row"><span class="gpu-big">${free}</span><span class="gpu-unit">/ ${s.total} GPU 여유</span></div>
+      <div>${gpuBoxes(asn, s.total)}</div>
       <div class="bar"><div class="used" style="width:${usedPct}%"></div><div class="free" style="width:${100-usedPct}%"></div></div>
       <div class="legend-mini"><span>배정 <b>${asn}</b></span><span>잔여 <b>${free}</b></span><span>총 <b>${s.total}</b></span></div>
       <div class="spec"><span>GPU</span> ${s.gpu}<br><span>CPU</span> ${s.cpu} &nbsp; <span>MEM</span> ${s.mem}</div>
@@ -480,7 +489,7 @@ function renderGrid(){
       const nos = cellList(slot.id, sv.id);
       const list = cellApps(slot.id, sv.id);
       const g = cellGPU(slot.id, sv.id), over = g > sv.total;
-      const gpuLine = list.length ? `<div class="cell-gpu ${over?'over':''}">GPU ${g}/${sv.total}${over?' ⚠ 초과':''}</div>` : '';
+      const gpuLine = `<div class="cell-gpu ${over?'over':''}">${gpuBoxes(g, sv.total)} ${g}/${sv.total}${over?' ⚠ 초과':''}</div>`;
       if(adminMode){
         // 해당 서버를 희망한 신청건(반려 제외)만 후보로, 체크 = 이 시간대에 배정
         const cands = STATE.applications.filter(x=>x.server===sv.id && x.status!=='반려');
@@ -488,7 +497,7 @@ function renderGrid(){
           || '<span class="occ-free">후보 없음</span>';
         return `<td class="cell ${list.length?'occ':''}">${boxes}${gpuLine}</td>`;
       }
-      if(!list.length) return `<td class="cell"><span class="occ-free">□</span></td>`;
+      if(!list.length) return `<td class="cell free-cell">${gpuLine}</td>`;
       return `<td class="cell occ">${list.map(a=>`<div class="occ-item">
         <div class="occ-name">${esc(a.who)}</div>
         <div class="occ-period">${periodText(a)} · GPU ${esc(a.gpu)||'?'}</div>
