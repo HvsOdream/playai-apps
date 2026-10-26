@@ -226,7 +226,7 @@
   <table>
     <thead>
       <tr><th>신청번호</th><th>신청주체</th><th>구분</th><th>희망 서버</th><th class="c">GPU</th>
-      <th>사용 시작일</th><th>사용 종료일</th><th class="c">상태</th><th class="c admincol hidden"></th></tr>
+      <th>사용 시작일</th><th>사용 종료일</th><th class="c">상태</th><th class="c">신청서</th><th class="c admincol hidden"></th></tr>
     </thead>
     <tbody id="apps"></tbody>
   </table>
@@ -259,6 +259,17 @@
     <div class="row">
       <button class="btn" onclick="closeChairLogin()">취소</button>
       <button class="btn solid" onclick="doChairLogin()">로그인</button>
+    </div>
+  </div>
+</div>
+
+<!-- 신청서 상세 모달 -->
+<div class="modal-bg hidden" id="detailModal">
+  <div class="modal wide">
+    <h4>📄 신청서 <span class="proc-sub" id="detailSub"></span></h4>
+    <div id="detailBody"></div>
+    <div class="row">
+      <button class="btn" onclick="closeDetail()">닫기</button>
     </div>
   </div>
 </div>
@@ -473,13 +484,15 @@ function renderApps(){
         <td class="c"><select class="inp" onchange="editApp(${i},'status',this.value)">
           ${['접수','승인','반려','배정','배정(기존)','연장','종료','검토중'].map(s=>`<option ${s===a.status?'selected':''}>${s}</option>`).join('')}
         </select></td>
+        <td class="c"><button class="linkbtn" onclick="openDetail(${i})">📄 보기</button></td>
         <td class="c rowtools"><button class="linkbtn" onclick="delApp(${i})">삭제</button></td>
       </tr>`;
     }
     return `<tr>
       <td>${a.no}</td><td><b>${a.who}</b></td><td>${a.kind}</td><td>${svById(a.server)?svById(a.server).name:a.server}</td>
       <td class="c">${a.gpu||'—'}</td><td>${a.start||'—'}</td><td>${a.end||'—'}</td>
-      <td class="c"><span class="st ${st}" title="${esc(a.note||'')}">${a.status}</span></td>
+      <td class="c"><span class="st ${st}">${a.status}</span></td>
+      <td class="c">${chairAuthed?`<button class="linkbtn" onclick="openDetail(${i})">📄 보기</button>`:'<span style="color:#aab2bd">—</span>'}</td>
       <td class="c admincol hidden"></td>
     </tr>`;
   }).join('');
@@ -602,6 +615,38 @@ function saveToCloud(cb){
   });
 }
 
+/* ===================== 신청서 상세 ===================== */
+// note 문자열: "[신청서] 담당(정) ... / 담당(부) ... / 연계교수: ... / 목적: ... / 희망시간대: ..." + 이후 줄은 처리 이력
+function parseNote(note){
+  const lines = String(note||'').split('\n');
+  const first = lines[0]||'';
+  const hist = lines.slice(1).filter(Boolean);
+  let items = [];
+  if(first.startsWith('[신청서]')){
+    items = first.replace('[신청서]','').split(' / ').map(x=>x.trim()).filter(Boolean).map(x=>{
+      const m = x.match(/^(담당\(정\)|담당\(부\)|연계교수|목적|희망시간대)\s*:?\s*(.*)$/);
+      return m ? [m[1], m[2]] : ['비고', x];
+    });
+  } else if(first){ items=[['비고', first]]; }
+  return {items, hist};
+}
+function openDetail(i){
+  const a = STATE.applications[i]; if(!a) return;
+  const sv = svById(a.server) ? svById(a.server).name : (a.server||'—');
+  const {items, hist} = parseNote(a.note);
+  const row = (k,v)=>`<tr><th style="width:110px;text-align:left;color:var(--mut);font-weight:600;padding:5px 8px;border-bottom:1px solid var(--line)">${esc(k)}</th><td style="padding:5px 8px;border-bottom:1px solid var(--line)">${esc(v)||'—'}</td></tr>`;
+  document.getElementById('detailSub').textContent = '— ' + (a.no||'') ;
+  document.getElementById('detailBody').innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      ${row('신청주체', a.who)}${row('구분', a.kind)}${row('희망 서버', sv)}${row('GPU 수량', a.gpu)}
+      ${row('이용기간', (a.start||'—')+' ~ '+(a.end||'—'))}${row('상태', a.status)}
+      ${items.map(([k,v])=>row(k,v)).join('')}
+    </table>
+    ${hist.length?`<div class="apv-done" style="margin-top:10px">처리 이력</div><div class="note" style="white-space:pre-wrap;font-size:12px">${esc(hist.join('\n'))}</div>`:''}`;
+  document.getElementById('detailModal').classList.remove('hidden');
+}
+function closeDetail(){ document.getElementById('detailModal').classList.add('hidden'); }
+
 /* ===================== 담당자 승인 ===================== */
 function pendingApps(){ return STATE.applications.filter(isPending); }
 function renderChairBadge(){
@@ -616,7 +661,7 @@ function openChair(){
 }
 function closeChairLogin(){ document.getElementById('chairLoginModal').classList.add('hidden'); document.getElementById('chairPin').value=''; }
 function doChairLogin(){
-  if(document.getElementById('chairPin').value === CHAIR_PIN){ chairAuthed=true; closeChairLogin(); showChair(); }
+  if(document.getElementById('chairPin').value === CHAIR_PIN){ chairAuthed=true; closeChairLogin(); renderApps(); showChair(); }
   else { alert('담당자 PIN이 올바르지 않습니다.'); }
 }
 function showChair(){ renderChair(); document.getElementById('chairModal').classList.remove('hidden'); }
@@ -634,6 +679,7 @@ function renderChair(msg){
       <div class="dl">${esc(a.kind)||'—'} · ${esc(sv)} · GPU ${esc(a.gpu)||'—'}기 · ${esc(a.start)||'—'} ~ ${esc(a.end)||'—'}${a.no?' · '+esc(a.no):''}</div>
       ${a.note?`<div class="note">${esc(a.note)}</div>`:''}
       <div class="act">
+        <button class="btn" onclick="openDetail(${i})">📄 신청서</button>
         <input id="rj${i}" placeholder="반려 사유 (반려 시 입력)">
         <button class="btn solid" onclick="chairDecide(${i},'승인')">✔ 승인</button>
         <button class="btn warn" onclick="chairDecide(${i},'반려')">✖ 반려</button>
