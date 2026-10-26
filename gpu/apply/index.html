@@ -176,11 +176,11 @@
           <input type="date" id="start" required>
         </div>
         <div class="fld">
-          <label class="lb">사용 종료일<span class="req">*</span><span class="hint">시작일로부터 6개월 이내</span></label>
+          <label class="lb">사용 종료일<span class="req">*</span><span class="hint">시작일로부터 2개월 이내</span></label>
           <input type="date" id="end" required>
         </div>
       </div>
-      <div class="note">※ 운영규정 제7조: 1회 배정 이용기간은 6개월을 초과할 수 없으며, 종료일 미기재 신청은 접수되지 않습니다. (연장 신청으로 갱신 가능)</div>
+      <div class="note">※ 운영규정 제7조: 1회 배정 이용기간은 2개월을 초과할 수 없으며, 종료일 미기재 신청은 접수되지 않습니다. (연장 신청으로 갱신 가능)</div>
     </div>
 
     <!-- 이용시간대 -->
@@ -288,8 +288,8 @@ function validate(d){
   if(!$('agree').checked) return '준수사항에 동의해 주세요.';
   if(d.slots.length===0) return '희망 이용시간대를 하나 이상 선택해 주세요.';
   if(new Date(d.end) < new Date(d.start)) return '종료일이 시작일보다 빠릅니다.';
-  if(monthsBetween(d.start, d.end) > 6 || (monthsBetween(d.start,d.end)===6 && new Date(d.end).getDate() > new Date(d.start).getDate()))
-    return '이용기간은 6개월을 초과할 수 없습니다. (제7조)';
+  if(monthsBetween(d.start, d.end) > 2 || (monthsBetween(d.start,d.end)===2 && new Date(d.end).getDate() > new Date(d.start).getDate()))
+    return '이용기간은 2개월을 초과할 수 없습니다. (제7조)';
   return null;
 }
 function summaryText(d){
