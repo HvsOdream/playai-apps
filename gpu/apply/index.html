@@ -354,8 +354,39 @@ function renderUsage(data){
 }
 let USAGE_DATA=null;
 readCloud(j=>{ USAGE_DATA = j && j.status==='ok' ? j.data : null; renderUsage(USAGE_DATA); });
-$('server').addEventListener('change', ()=>{ if(USAGE_DATA) renderUsage(USAGE_DATA); });
+function syncGpuMax(){ const t = SV_TOTAL[$('server').value]||4; $('gpu').max = t; $('gpu').placeholder = '최대 '+t; if(parseInt($('gpu').value,10)>t) $('gpu').value = t; }
+$('server').addEventListener('change', ()=>{ syncGpuMax(); if(USAGE_DATA) renderUsage(USAGE_DATA); });
+syncGpuMax();
 
+/* ---------- 여유 초과 신청 검사 (배정 확정분 기준) ---------- */
+// 선택한 서버·기간·시간대에서 '가장 빠듯한 주'의 여유 GPU를 구한다
+function capacityCheck(d){
+  if(!USAGE_DATA || !Array.isArray(USAGE_DATA.applications)) return null;   // 현황을 못 받았으면 검사 생략
+  const apps = USAGE_DATA.applications, asg = USAGE_DATA.assignments||{};
+  const total = SV_TOTAL[d.server]||0, want = parseInt(d.gpu,10)||0;
+  const band = {'오전':'am','오후':'pm','야간':'ni'};
+  const slotIds = new Set();
+  d.slots.forEach(x=>{ const m=x.match(/^([월화수목금토일])\s*(오전|오후|야간)/); if(m) slotIds.add((m[1]==='토'||m[1]==='일'?'we':'wd')+'_'+band[m[2]]); });
+  let worst = {free: total, when: null, slot: null};
+  const s0 = new Date(d.start), e0 = new Date(d.end);
+  for(let t=new Date(s0); t<=e0; t.setDate(t.getDate()+7)){
+    const ws = fmtDate(t), weD = new Date(t); weD.setDate(t.getDate()+6); const we = fmtDate(weD);
+    slotIds.forEach(k=>{
+      const v = (asg[k]||{})[d.server]; const nos = !v ? [] : (Array.isArray(v) ? v : [v]);
+      const g = nos.map(no=>apps.find(x=>x.no===no)).filter(a=>a && String(a.status).startsWith('배정') && a.start && a.end && a.start<=we && a.end>=ws)
+                   .reduce((s,a)=>s+(parseInt(a.gpu,10)||0),0);
+      const free = Math.max(0, total-g);
+      if(free < worst.free) worst = {free, when: ws, slot: k};
+    });
+  }
+  return {ok: want <= worst.free, want, worst, total};
+}
+function fmtDate(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+const SLOT_LABEL = Object.fromEntries(SLOT_COLS);
+let OVER_ACK = false;
+
+['gpu','server','start','end'].forEach(id=>$(id).addEventListener('input', ()=>{ OVER_ACK=false; $('submitBtn').textContent='신청서 제출'; }));
+document.addEventListener('change', e=>{ if(e.target.classList && e.target.classList.contains('slotchk')){ OVER_ACK=false; $('submitBtn').textContent='신청서 제출'; } });
 function quickSel(kind){
   document.querySelectorAll('.slotchk').forEach(c=>{
     if(kind==='clear') c.checked=false;
@@ -399,14 +430,14 @@ function summaryText(d){
 · GPU 요청 수량: ${d.gpu} 기
 · 이용 목적: ${d.purpose}
 · 사용 기간: ${d.start} ~ ${d.end}
-· 희망 시간대: ${d.slots.join(', ')}`;
+· 희망 시간대: ${d.slots.join(', ')}` + (d.overCap?`\n· ⚠ ${d.overCap} — 담당자 검토 후 수량 조정 또는 대기 처리될 수 있습니다`:'');
 }
 // 관리 앱(접수대장) 형식으로 변환
 function toApplication(d){
   return {
     no:"", who:d.who, kind:d.kind, server:d.server, gpu:d.gpu,
     start:d.start, end:d.end, status:"접수",
-    note:`[신청서] 담당(정) ${d.mgr1} ${d.tel1} ${d.email}` +
+    note:(d.overCap?`[⚠ ${d.overCap}] `:'') + `[신청서] 담당(정) ${d.mgr1} ${d.tel1} ${d.email}` +
          (d.mgr2?` / 담당(부) ${d.mgr2} ${d.tel2}`:``) +
          ` / 연계교수: ${d.prof}` +
          ` / 목적: ${d.purpose} / 희망시간대: ${d.slots.join(', ')}`
@@ -418,6 +449,17 @@ $('form').addEventListener('submit', async (ev)=>{
   const d = collect();
   const err = validate(d);
   if(err){ showMsg('⚠ '+err, 'err'); return; }
+  const cap = capacityCheck(d);
+  if(cap && !cap.ok && !OVER_ACK){
+    OVER_ACK = true;
+    const w = cap.worst;
+    showMsg(`⚠ 요청 GPU ${cap.want}장이 선택한 기간·시간대의 여유를 넘습니다 — 가장 빠듯한 때: ${w.when}주 ${SLOT_LABEL[w.slot]||w.slot} 여유 ${w.free}/${cap.total}장. `
+      + `수량·기간·시간대를 조정하면 바로 배정될 가능성이 높습니다. 그대로 제출하면 "여유초과"로 접수되어 담당자가 수량 조정·대기 처리할 수 있습니다.`, 'err');
+    $('submitBtn').textContent = '조정 없이 그대로 제출';
+    window.scrollTo({top: $('msg').getBoundingClientRect().top + window.scrollY - 80, behavior:'smooth'});
+    return;
+  }
+  d.overCap = cap && !cap.ok ? `여유초과(요청 ${cap.want}·여유 ${cap.worst.free})` : '';
   $('submitBtn').disabled = true;
 
   if(CLOUD_URL){

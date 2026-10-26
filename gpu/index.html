@@ -157,6 +157,13 @@
   .cal-occ{font-weight:700;color:#9a5a1c;font-size:12px}
   .cal-occ small{display:block;font-weight:700;color:#a86a1e;font-size:9.5px;margin-top:1px}
   .cal-free{color:#c8d0da;font-size:15px}
+  .cal-tbl td.band{text-align:left;vertical-align:top;padding:6px 10px}
+  .cal-g{display:flex;align-items:center;gap:6px;font-size:11px;color:#7a5a2e;margin-bottom:3px} .cal-g.over{color:#c9553d;font-weight:800}
+  .cal-g .gbox{font-size:12px;letter-spacing:1.5px}
+  td.band.free .cal-g{color:#b5bdc8;margin:0}
+  .cal-row{font-size:11.5px;line-height:1.45;white-space:nowrap;color:#5a4630}
+  .cal-row b{color:#9a5a1c;font-weight:700} .cal-row span{color:#8a7256;font-size:10.5px;margin-left:4px}
+  .cal-row em{font-style:normal;color:#a86a1e;font-size:10px;margin-left:4px;font-weight:700}
   .cal-tbl tr.today td.day{box-shadow:inset 3px 0 0 var(--navy)}
   .cal-note{font-size:11.5px;color:var(--mut);margin-top:8px}
 
@@ -431,12 +438,13 @@ function render2Week(){
     const cells = bands.map(([b])=>{
       const slotId=dayType+'_'+b;
       const list = cellApps(slotId, CUR_TAB).filter(a=>inPeriod(dt,a));
-      if(list.length){
-        return `<td class="band">${list.map(a=>{
-          const tag = isPending(a) ? '<small>신청중</small>' : (String(a.status).startsWith('배정')?'<small>배정 · GPU '+(a.gpu||'?')+'</small>':'<small>'+a.status+'</small>');
-          return `<span class="cal-occ">${a.who}${tag}</span>`; }).join('')}</td>`;
-      }
-      return `<td class="band"><span class="cal-free">□</span></td>`;
+      const total = (svById(CUR_TAB)||{}).total||0;
+      const g = list.filter(a=>String(a.status).startsWith('배정')).reduce((s,a)=>s+(parseInt(a.gpu,10)||0),0);
+      const head = `<div class="cal-g ${g>total?'over':''}">${gpuBoxes(g,total)} <span>${g}/${total}</span></div>`;
+      if(!list.length) return `<td class="band free">${head}</td>`;
+      return `<td class="band">${head}${list.map(a=>{
+        const st = isPending(a) ? '<em>신청중</em>' : (String(a.status).startsWith('배정') ? '' : '<em>'+esc(a.status)+'</em>');
+        return `<div class="cal-row"><b>${esc(a.who)}</b> <span>GPU ${esc(a.gpu)||'?'} · ~${esc(a.end)||'?'}</span>${st}</div>`; }).join('')}</td>`;
     }).join('');
     rows+=`<tr class="${we?'we':''} ${isToday?'today':''}"><td class="day">${fmtD(dt)} (${WDAY[dt.getDay()]})</td>${cells}</tr>`;
   }
@@ -474,7 +482,7 @@ function renderCards(){
     const usedPct = s.total ? (asn/s.total*100) : 0;
     return `<div class="card">
       <h3>${s.name}</h3><div class="loc">📍 ${s.loc}</div>
-      <div class="gpu-row"><span class="gpu-big">${free}</span><span class="gpu-unit">/ ${s.total} GPU 여유</span></div>
+      <div class="gpu-row"><span class="gpu-big">${free}</span><span class="gpu-unit">/ ${s.total} GPU</span></div>
       <div>${gpuBoxes(asn, s.total)}</div>
       <div class="bar"><div class="used" style="width:${usedPct}%"></div><div class="free" style="width:${100-usedPct}%"></div></div>
       <div class="legend-mini"><span>배정 <b>${asn}</b></span><span>잔여 <b>${free}</b></span><span>총 <b>${s.total}</b></span></div>
@@ -532,7 +540,7 @@ function renderApps(){
     return `<tr>
       <td>${a.no}</td><td><b>${a.who}</b></td><td>${a.kind}</td><td>${svById(a.server)?svById(a.server).name:a.server}</td>
       <td class="c">${a.gpu||'—'}</td><td>${a.start||'—'}</td><td>${a.end||'—'}</td>
-      <td class="c"><span class="st ${st}">${a.status}</span></td>
+      <td class="c nowrap"><span class="st ${st}">${a.status}</span>${/여유초과/.test(a.note||'')?' <span class="st rejected" title="요청 GPU가 신청 시점 여유를 초과">⚠</span>':''}</td>
       <td class="c nowrap">${chairAuthed?`<button class="linkbtn" onclick="openDetail(${i})">📄 보기</button>`:'<span style="color:#aab2bd">—</span>'}</td>
       <td class="c admincol hidden"></td>
     </tr>`;
@@ -712,14 +720,16 @@ function doSave(cb){
 // note 문자열: "[신청서] 담당(정) ... / 담당(부) ... / 연계교수: ... / 목적: ... / 희망시간대: ..." + 이후 줄은 처리 이력
 function parseNote(note){
   const lines = String(note||'').split('\n');
-  const first = lines[0]||'';
+  let first = lines[0]||'';
   const hist = lines.slice(1).filter(Boolean);
   let items = [];
+  const warn = first.match(/^\[⚠ ([^\]]+)\]\s*/);
+  if(warn){ items.push(['⚠ 주의', warn[1]]); first = first.slice(warn[0].length); }
   if(first.startsWith('[신청서]')){
-    items = first.replace('[신청서]','').split(' / ').map(x=>x.trim()).filter(Boolean).map(x=>{
+    items = items.concat(first.replace('[신청서]','').split(' / ').map(x=>x.trim()).filter(Boolean).map(x=>{
       const m = x.match(/^(담당\(정\)|담당\(부\)|연계교수|목적|희망시간대)\s*:?\s*(.*)$/);
       return m ? [m[1], m[2]] : ['비고', x];
-    });
+    }));
   } else if(first){ items=[['비고', first]]; }
   return {items, hist};
 }
@@ -768,7 +778,7 @@ function renderChair(msg){
     const i = STATE.applications.indexOf(a);
     const sv = svById(a.server) ? svById(a.server).name : (a.server||'—');
     return `<div class="apv-item">
-      <div class="hd"><b>${esc(a.who)||'(기관명 없음)'}</b><span class="st review">${esc(a.status)}</span></div>
+      <div class="hd"><b>${esc(a.who)||'(기관명 없음)'}</b><span>${/여유초과/.test(a.note||'')?'<span class="st rejected" style="margin-right:6px">⚠ 여유초과</span>':''}<span class="st review">${esc(a.status)}</span></span></div>
       <div class="dl">${esc(a.kind)||'—'} · ${esc(sv)} · GPU ${esc(a.gpu)||'—'}기 · ${esc(a.start)||'—'} ~ ${esc(a.end)||'—'}${a.no?' · '+esc(a.no):''}</div>
       ${a.note?`<div class="note">${esc(a.note)}</div>`:''}
       <div class="act">
