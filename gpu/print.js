@@ -54,6 +54,7 @@
   .confirm .seal b{display:block;font-size:10pt;color:#1f3f7a} .confirm .seal span{position:absolute;right:10px;bottom:8px;color:#999}
   .ft{margin-top:10px;font-size:8.5pt;color:#777;display:flex;justify-content:space-between;gap:16px;white-space:nowrap;border-top:1px solid #ccc;padding-top:6px}
   .warn{color:#b5482f;font-weight:700}
+  .bk{margin-top:8px;font-size:9pt;color:#8a3a26;background:#fdf1ec;border:1px solid #e9b9a8;padding:6px 10px}
   .nop{position:fixed;top:10px;right:10px;background:#2E5AAC;color:#fff;border:0;border-radius:8px;padding:10px 16px;font:inherit;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.2)}
   @media print{.nop{display:none}}
 </style></head><body>
@@ -87,6 +88,7 @@
     <div class="txt">위 신청은 <b>${esc(a.who)}</b>이(가) 고사양 서버 이용관리 시스템을 통해 <b>${esc(fmtDT(a._submittedAt))||'—'}</b>에 접수하였으며,${apvDate?` 서일대학교 AI게임융합학과 담당자 승인(<b>${esc(apvDate)}</b>)을 거쳐`:''} ${/^배정/.test(a.status)?'서버 이용 시간대가 배정되었음을':(rej?'반려 처리되었음을':'검토 중임을')} 확인합니다.<br>산학연계 교수: <b>${esc(f['연계교수']||'—')}</b> · 처리: 서일대학교 AI게임융합학과</div>
     <div class="seal"><b>AI게임융합학과</b>확인<span>(직인)</span></div>
   </div>
+  <div class="bk">※ 이용 기간 종료 시 배정 서버의 계정·작업 공간이 초기화될 수 있으며, 결과물·데이터의 백업은 이용자 책임입니다. 종료 3일 전 담당자 이메일로 안내합니다.</div>
   <div class="ft"><span>고사양 서버 이용관리 시스템(apps.playai.kr/gpu) 출력본 · 운영규정 제7조(1회 배정 2개월 이내)</span><span>출력일 ${today()}</span></div>
 </div>
 </body></html>`;
