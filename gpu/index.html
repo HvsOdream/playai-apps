@@ -366,6 +366,7 @@ let adminMode = false;
 let chairAuthed = false;
 let LOADED_AT = new Date().toISOString();   // 마지막으로 서버 데이터를 받은 시각 (병합 기준)
 let DECIDED = new Set();                    // 이 화면에서 담당자가 승인/반려한 신청번호
+let DELETED = new Set();                    // 이 화면에서 조교가 '삭제'한 신청번호 (병합 시 이것만 제거)
 const isPending = a => a.status==='접수' || a.status==='검토중';
 const esc = v => String(v==null?'':v).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -612,7 +613,9 @@ function addApp(){
   markDirty(); renderApps();
 }
 function delApp(i){
-  const no = STATE.applications[i].no;
+  const a = STATE.applications[i]; if(!a) return;
+  if(!confirm('「' + (a.who||a.no) + '」 신청을 삭제할까요?\n삭제 후 저장하면 되돌릴 수 없습니다.\n(서버만 바꾸려면 삭제 대신 희망 서버 칸을 바꾸세요)')) return;
+  const no = a.no; DELETED.add(no);
   STATE.applications.splice(i,1);
   // 시간표에서도 제거
   Object.values(STATE.assignments).forEach(row=>{ for(const k in row){ row[k] = cellListOf(row[k]).filter(x=>x!==no); } });
@@ -702,8 +705,7 @@ function mergeState(local, remote){
   remote.applications.forEach(r=>{
     const l = lmap.get(r.no);
     if(!l){
-      const isNew = r._submittedAt && r._submittedAt > LOADED_AT;
-      if(!adminMode || isNew) out.applications.push(r);     // 조교가 지운 행만 제외
+      if(!(adminMode && DELETED.has(r.no))) out.applications.push(r);   // 이 화면에서 명시적으로 삭제한 행만 제외, 나머지는 보존
       return;
     }
     let m;
@@ -733,7 +735,7 @@ function doSave(cb){
   jsonp({action:'save', pin:ADMIN_PIN, payload:JSON.stringify(STATE)}, (j)=>{
     let ok = false;
     if(j && j.status==='ok'){
-      ok = true; LOADED_AT = new Date().toISOString(); DECIDED.clear(); DIRTY=false; updateSavebar();
+      ok = true; LOADED_AT = new Date().toISOString(); DECIDED.clear(); DELETED.clear(); DIRTY=false; updateSavebar();
       setCloud('☁ 저장됨 · ' + (j.synced?new Date(j.synced).toLocaleString('ko-KR'):''), 'ok');
     } else if(j && j.message==='unauthorized'){
       setCloud('☁ 저장 실패(PIN 불일치)', 'err');
