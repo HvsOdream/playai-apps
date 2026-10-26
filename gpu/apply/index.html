@@ -13,6 +13,17 @@
   .proc{background:#f0f4fb;border:1px solid #d9e2f2;border-radius:14px;padding:13px 16px 15px;margin-bottom:18px}
   .proc-title{font-size:13px;font-weight:800;color:var(--navy);margin-bottom:11px}
   .proc-sub{font-weight:500;color:var(--mut);font-size:11px}
+  .usage{border:1px dashed #c7d0de;border-radius:10px;padding:10px 12px;background:#f8fafd;margin-top:4px}
+  .usage .ut{font-size:12px;font-weight:800;color:var(--navy);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+  .usage .ut small{font-weight:500;color:var(--mut)}
+  .usage table{width:100%;border-collapse:collapse;margin-top:8px;font-size:11.5px}
+  .usage th,.usage td{border:1px solid var(--line);padding:5px 6px;text-align:center;white-space:nowrap}
+  .usage th{background:#eef2fb;color:#33415a;font-weight:700}
+  .usage td.sv{text-align:left;font-weight:700;color:var(--ink)}
+  .usage td.sel{background:#fff6e6}
+  .usage .g{font-weight:800;color:var(--navy)}
+  .usage .occ{color:#c9553d;font-weight:800} .usage .pen{color:#b07a1a;font-weight:800} .usage .free{color:#9aa4b2}
+  .usage .leg{font-size:10.5px;color:var(--mut);margin-top:6px}
   .steps{list-style:none;display:flex;flex-wrap:wrap;align-items:stretch;gap:6px}
   .step{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 13px}
   .step .n{width:23px;height:23px;border-radius:50%;background:#c3cee0;color:#fff;font-size:12.5px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -165,6 +176,11 @@
           <input type="number" id="gpu" min="1" max="4" step="1" placeholder="예) 2" required>
         </div>
       </div>
+      <div class="usage" id="usage">
+        <div class="ut">📊 현재 사용 현황 <small id="usageSub">불러오는 중…</small></div>
+        <div id="usageBody"></div>
+        <div class="leg">■ 배정됨(사용 중) · ▲ 신청·승인 대기 · □ 여유 — 여유 시간대와 잔여 GPU를 참고해 희망 서버·시간대를 고르면 배정이 빠릅니다. (이용 기관명은 표시하지 않습니다)</div>
+      </div>
       <div class="fld">
         <label class="lb">프로젝트명 / 이용 목적<span class="req">*</span></label>
         <textarea id="purpose" placeholder="예) 차세대 LLM·피지컬 AI 개발: COSMOS WFM 파인튜닝 및 서비스 실증"></textarea>
@@ -263,6 +279,45 @@ function jsonp(params, cb){
   document.body.appendChild(s);
   setTimeout(()=>{ if(!done){ done=true; cb(null); cleanup(); } }, 15000);
 }
+/* ---------- 현재 사용 현황 (기관명 비노출) ---------- */
+const PROXY = "https://playai-api.withsky0.workers.dev/gpu";
+const SV_TOTAL = { h200:4, poseidon:3, threadripper:2 };
+const SLOT_COLS = [['wd_am','평일 오전'],['wd_pm','평일 오후'],['wd_ni','평일 야간'],['we_am','주말 오전'],['we_pm','주말 오후'],['we_ni','주말 야간']];
+function readCloud(cb){
+  fetch(PROXY+'?action=read&n='+Date.now(),{cache:'no-store'}).then(r=>{ if(!r.ok) throw 0; return r.json(); })
+    .then(cb).catch(()=>jsonp({action:'read'}, cb));
+}
+function renderUsage(data){
+  const sub=$('usageSub'), body=$('usageBody');
+  if(!data || !Array.isArray(data.applications)){ sub.textContent='현황을 불러오지 못했습니다 (신청은 가능)'; return; }
+  const apps = data.applications, asg = data.assignments||{};
+  const today = new Date().toISOString().slice(0,10);
+  const live = a => !a.end || a.end >= today;   // 종료일 지난 건 제외
+  const isAsg = a => String(a.status).startsWith('배정');
+  const isPen = a => a.status==='접수' || a.status==='검토중' || a.status==='승인';
+  const sel = $('server').value;
+  const rows = Object.keys(SV_NAME).map(id=>{
+    const mine = apps.filter(a=>a.server===id && live(a));
+    const used = mine.filter(isAsg).reduce((s,a)=>s+(parseInt(a.gpu,10)||0),0);
+    const pend = mine.filter(isPen).reduce((s,a)=>s+(parseInt(a.gpu,10)||0),0);
+    const total = SV_TOTAL[id]||0, free = Math.max(0,total-used);
+    const cells = SLOT_COLS.map(([k])=>{
+      const no = (asg[k]||{})[id];
+      const a = no ? apps.find(x=>x.no===no) : null;
+      if(a && live(a)) return isAsg(a) ? '<span class="occ">■</span>' : '<span class="pen">▲</span>';
+      return '<span class="free">□</span>';
+    }).join('</td><td>');
+    return `<tr${id===sel?' style="outline:2px solid #f0c27a"':''}><td class="sv${id===sel?' sel':''}">${SV_NAME[id]}</td>
+      <td><span class="g">${free}</span>/${total}${pend?` <span class="pen" title="신청·승인 대기 GPU">(대기 ${pend})</span>`:''}</td><td>${cells}</td></tr>`;
+  }).join('');
+  body.innerHTML = `<table><thead><tr><th>서버</th><th>잔여 GPU</th>${SLOT_COLS.map(([,l])=>`<th>${l}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>`;
+  const n = apps.filter(a=>live(a)&&isPen(a)).length;
+  sub.textContent = (data._synced?new Date(data._synced).toLocaleDateString('ko-KR')+' 기준':'') + (n?` · 처리 대기 ${n}건`:'');
+}
+let USAGE_DATA=null;
+readCloud(j=>{ USAGE_DATA = j && j.status==='ok' ? j.data : null; renderUsage(USAGE_DATA); });
+$('server').addEventListener('change', ()=>{ if(USAGE_DATA) renderUsage(USAGE_DATA); });
+
 function quickSel(kind){
   document.querySelectorAll('.slotchk').forEach(c=>{
     if(kind==='clear') c.checked=false;
