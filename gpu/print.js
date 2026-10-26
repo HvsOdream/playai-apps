@@ -47,10 +47,12 @@
   table.slots th{background:#f3f6fb;font-weight:700} table.slots th.we{color:#a3495a} table.slots small{font-weight:400;color:#777}
   .on{color:#1f3f7a;font-weight:900} .off{color:#ccc}
   .hist{font-family:inherit;font-size:9.5pt;color:#333;white-space:pre-wrap;margin:0;padding:6px 9px;border:1px solid #c7d0de;background:#fafbfd}
-  .sign{display:flex;gap:10mm;margin-top:16px}
-  .sign div{flex:1;border:1px solid #9aa4b2;padding:8px 10px;height:24mm;font-size:9.5pt;color:#333;position:relative}
-  .sign div b{display:block;font-size:10pt;color:#1f3f7a} .sign div span{position:absolute;right:10px;bottom:8px;color:#999}
-  .ft{margin-top:10px;font-size:8.5pt;color:#777;display:flex;justify-content:space-between;border-top:1px solid #ccc;padding-top:6px}
+  .confirm{display:flex;gap:8mm;align-items:stretch;margin-top:14px}
+  .confirm .txt{flex:1;border:1px solid #9aa4b2;background:#fafbfd;padding:9px 12px;font-size:9.8pt;color:#223;line-height:1.6}
+  .confirm .txt b{color:#1f3f7a}
+  .confirm .seal{width:38mm;border:1px solid #9aa4b2;padding:8px 10px;font-size:9.5pt;color:#333;position:relative}
+  .confirm .seal b{display:block;font-size:10pt;color:#1f3f7a} .confirm .seal span{position:absolute;right:10px;bottom:8px;color:#999}
+  .ft{margin-top:10px;font-size:8.5pt;color:#777;display:flex;justify-content:space-between;gap:16px;white-space:nowrap;border-top:1px solid #ccc;padding-top:6px}
   .warn{color:#b5482f;font-weight:700}
   .nop{position:fixed;top:10px;right:10px;background:#2E5AAC;color:#fff;border:0;border-radius:8px;padding:10px 16px;font:inherit;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.2)}
   @media print{.nop{display:none}}
@@ -81,12 +83,11 @@
   </table>
   <div class="sec">3. 처리 내역</div>
   <pre class="hist">${esc(hist.join('\n'))||'<span class="muted">처리 이력 없음</span>'}</pre>
-  <div class="sign">
-    <div><b>신청 기관</b>${esc(a.who)}<span>(서명/인)</span></div>
-    <div><b>산학연계 교수</b>${esc(f['연계교수']||'')}<span>(서명/인)</span></div>
-    <div><b>AI게임융합학과장</b>${apvDate?'승인 '+esc(apvDate):''}<span>(서명/인)</span></div>
+  <div class="confirm">
+    <div class="txt">위 신청은 <b>${esc(a.who)}</b>이(가) 고사양 서버 이용관리 시스템을 통해 <b>${esc(fmtDT(a._submittedAt))||'—'}</b>에 접수하였으며,${apvDate?` 서일대학교 AI게임융합학과 담당자 승인(<b>${esc(apvDate)}</b>)을 거쳐`:''} ${/^배정/.test(a.status)?'서버 이용 시간대가 배정되었음을':(rej?'반려 처리되었음을':'검토 중임을')} 확인합니다.<br>산학연계 교수: <b>${esc(f['연계교수']||'—')}</b> · 처리: 서일대학교 AI게임융합학과</div>
+    <div class="seal"><b>AI게임융합학과</b>확인<span>(직인)</span></div>
   </div>
-  <div class="ft"><span>본 문서는 고사양 서버 이용관리 시스템(apps.playai.kr/gpu)에서 출력되었습니다 · 운영규정 제7조(1회 배정 2개월 이내)</span><span>출력일 ${today()}</span></div>
+  <div class="ft"><span>고사양 서버 이용관리 시스템(apps.playai.kr/gpu) 출력본 · 운영규정 제7조(1회 배정 2개월 이내)</span><span>출력일 ${today()}</span></div>
 </div>
 </body></html>`;
   };
