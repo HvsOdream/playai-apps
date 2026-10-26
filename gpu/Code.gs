@@ -121,6 +121,48 @@ function testNotify() {
   Logger.log('잔여 일일 발송 한도: ' + MailApp.getRemainingDailyQuota());
 }
 
+/* ---------------- 이용 종료 3일 전 알림 (매일 09시 트리거) ---------------- */
+const EXPIRY_DAYS_BEFORE = 3;
+function notifyExpiring() {
+  const data = readData(); if (!data || !Array.isArray(data.applications)) return;
+  const tz = 'Asia/Seoul';
+  const target = Utilities.formatDate(new Date(Date.now() + EXPIRY_DAYS_BEFORE * 86400000), tz, 'yyyy-MM-dd');
+  let changed = false;
+  data.applications.forEach(function (a) {
+    if (!a || !a.end || a._expiryNotified) return;
+    if (!/^배정/.test(String(a.status))) return;          // 배정된 건만
+    if (a.end !== target) return;                          // 종료 3일 전 당일에만
+    try {
+      const m = String(a.note || '').match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
+      const to = [NOTIFY_EMAIL, m ? m[0] : ''].filter(Boolean).join(',');
+      const subject = '[GPU 서버] ' + a.who + ' 이용 종료 ' + EXPIRY_DAYS_BEFORE + '일 전 안내 (' + a.end + ' 종료)';
+      const body = [
+        a.who + '의 고사양 서버 이용 기간이 ' + a.end + '에 종료됩니다 (' + EXPIRY_DAYS_BEFORE + '일 전 안내).',
+        '',
+        '접수번호 : ' + (a.no || '-'),
+        '서버     : ' + (a.server || '-') + ' / GPU ' + (a.gpu || '-') + '장',
+        '이용기간 : ' + (a.start || '-') + ' ~ ' + a.end,
+        '',
+        '계속 사용이 필요하면 종료일 전에 연장(재신청)을 해주세요: ' + ADMIN_URL + '/apply/',
+        '종료 후에는 배정이 해제되고 GPU가 다른 신청에 배정됩니다.',
+        '',
+        '관리 페이지: ' + ADMIN_URL
+      ].join('\n');
+      MailApp.sendEmail(to, subject, body, { name: 'GPU 서버 이용관리' });
+      a._expiryNotified = new Date().toISOString();
+      changed = true;
+    } catch (e) { Logger.log('notifyExpiring failed for ' + a.no + ': ' + e); }
+  });
+  if (changed) saveFile(FILE_NAME, JSON.stringify(data, null, 2));
+  Logger.log('notifyExpiring done: target=' + target + ' sent=' + changed);
+}
+/* 1회 실행: 매일 09시(한국) notifyExpiring 트리거 등록 (중복 방지) */
+function setupExpiryTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'notifyExpiring') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('notifyExpiring').timeBased().everyDays(1).atHour(9).inTimezone('Asia/Seoul').create();
+  Logger.log('트리거 등록 완료: notifyExpiring 매일 09시');
+}
+
 function testSetup() {
   const f = getFolder();
   Logger.log('폴더 OK: ' + f.getName() + ' / id=' + f.getId());
