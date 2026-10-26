@@ -142,6 +142,10 @@
           <input type="tel" id="tel2" placeholder="010-0000-0000">
         </div>
       </div>
+      <div class="fld">
+        <label class="lb">산학연계 교수<span class="req">*</span><span class="hint">AI게임융합학과 연계 교수 성명</span></label>
+        <input type="text" id="prof" placeholder="예) 홍길동 교수" required>
+      </div>
     </div>
 
     <!-- 이용 내용 -->
@@ -277,14 +281,14 @@ function collect(){
   return {
     who: $('who').value.trim(), kind: $('kind').value, email: $('email').value.trim(),
     mgr1: $('mgr1').value.trim(), tel1: $('tel1').value.trim(),
-    mgr2: $('mgr2').value.trim(), tel2: $('tel2').value.trim(),
+    mgr2: $('mgr2').value.trim(), tel2: $('tel2').value.trim(), prof: $('prof').value.trim(),
     server: $('server').value, serverName: SV_NAME[$('server').value],
     gpu: $('gpu').value, purpose: $('purpose').value.trim(),
     start: $('start').value, end: $('end').value, slots
   };
 }
 function validate(d){
-  if(!d.who||!d.email||!d.mgr1||!d.tel1||!d.gpu||!d.purpose||!d.start||!d.end) return '필수 항목(*)을 모두 입력해 주세요.';
+  if(!d.who||!d.email||!d.mgr1||!d.tel1||!d.prof||!d.gpu||!d.purpose||!d.start||!d.end) return '필수 항목(*)을 모두 입력해 주세요.';
   if(!$('agree').checked) return '준수사항에 동의해 주세요.';
   if(d.slots.length===0) return '희망 이용시간대를 하나 이상 선택해 주세요.';
   if(new Date(d.end) < new Date(d.start)) return '종료일이 시작일보다 빠릅니다.';
@@ -297,6 +301,7 @@ function summaryText(d){
 · 기관: ${d.who} (${d.kind})
 · 담당(정): ${d.mgr1} / ${d.tel1} / ${d.email}
 · 담당(부): ${d.mgr2||'-'} ${d.tel2||''}
+· 산학연계 교수: ${d.prof}
 · 희망 서버: ${d.serverName}
 · GPU 요청 수량: ${d.gpu} 기
 · 이용 목적: ${d.purpose}
@@ -310,6 +315,7 @@ function toApplication(d){
     start:d.start, end:d.end, status:"접수",
     note:`[신청서] 담당(정) ${d.mgr1} ${d.tel1} ${d.email}` +
          (d.mgr2?` / 담당(부) ${d.mgr2} ${d.tel2}`:``) +
+         ` / 연계교수: ${d.prof}` +
          ` / 목적: ${d.purpose} / 희망시간대: ${d.slots.join(', ')}`
   };
 }
