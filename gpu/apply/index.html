@@ -179,7 +179,7 @@
       <div class="usage" id="usage">
         <div class="ut">📊 현재 사용 현황 <small id="usageSub">불러오는 중…</small></div>
         <div id="usageBody"></div>
-        <div class="leg">■ 배정됨(사용 중) · ▲ 신청·승인 대기 · □ 여유 — 여유 시간대와 잔여 GPU를 참고해 희망 서버·시간대를 고르면 배정이 빠릅니다. (이용 기관명은 표시하지 않습니다)</div>
+        <div class="leg">■ 배정됨(숫자=그 시간대 배정 GPU 수) · ▲ 신청·승인 대기 · □ 여유 — 여유 시간대와 잔여 GPU를 참고해 희망 서버·시간대를 고르면 배정이 빠릅니다. (이용 기관명은 표시하지 않습니다)</div>
       </div>
       <div class="fld">
         <label class="lb">프로젝트명 / 이용 목적<span class="req">*</span></label>
@@ -302,10 +302,12 @@ function renderUsage(data){
     const pend = mine.filter(isPen).reduce((s,a)=>s+(parseInt(a.gpu,10)||0),0);
     const total = SV_TOTAL[id]||0, free = Math.max(0,total-used);
     const cells = SLOT_COLS.map(([k])=>{
-      const no = (asg[k]||{})[id];
-      const a = no ? apps.find(x=>x.no===no) : null;
-      if(a && live(a)) return isAsg(a) ? '<span class="occ">■</span>' : '<span class="pen">▲</span>';
-      return '<span class="free">□</span>';
+      const v = (asg[k]||{})[id]; const nos = !v ? [] : (Array.isArray(v) ? v : [v]);
+      const list = nos.map(no=>apps.find(x=>x.no===no)).filter(a=>a && live(a));
+      if(!list.length) return '<span class="free">□</span>';
+      const g = list.filter(isAsg).reduce((s,a)=>s+(parseInt(a.gpu,10)||0),0);
+      if(g>0) return `<span class="occ" title="배정 GPU ${g}">■${g}</span>`;
+      return '<span class="pen">▲</span>';
     }).join('</td><td>');
     return `<tr${id===sel?' style="outline:2px solid #f0c27a"':''}><td class="sv${id===sel?' sel':''}">${SV_NAME[id]}</td>
       <td><span class="g">${free}</span>/${total}${pend?` <span class="pen" title="신청·승인 대기 GPU">(대기 ${pend})</span>`:''}</td><td>${cells}</td></tr>`;

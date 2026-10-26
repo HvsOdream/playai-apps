@@ -108,6 +108,16 @@
   .cell{text-align:center;min-width:150px}
   .cell.occ{background:var(--occ-bg)}
   .occ-name{font-weight:700;color:#9a5a1c;font-size:12.5px}
+  .occ-item{padding:3px 0;border-top:1px dashed #e8d9c4} .occ-item:first-child{border-top:0}
+  .cell-gpu{font-size:10.5px;color:#7a5a2e;margin-top:4px} .cell-gpu.over{color:#c9553d;font-weight:800}
+  .cand{display:flex;align-items:center;gap:5px;font-size:11.5px;text-align:left;padding:2px 0;white-space:nowrap}
+  .cand input{margin:0}
+  .cand .g{color:var(--mut);font-size:10.5px}
+  .cal-occ{display:block}
+  .savebar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#1f2a3a;color:#fff;border-radius:999px;padding:9px 10px 9px 16px;display:flex;gap:10px;align-items:center;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:50}
+  .savebar .btn{background:#fff;color:#1f2a3a;border:0;font-weight:800}
+  .savebar.ok{background:#2f6b3a}
+  td.c.nowrap{white-space:nowrap}
   .occ-period{font-size:10.5px;color:#7a5a2e;margin-top:1px}
   .occ-free{color:#aab2bd;font-size:16px}
   .pill{display:inline-block;font-size:10px;font-weight:700;padding:1px 7px;border-radius:12px;margin-top:3px}
@@ -239,6 +249,9 @@
   </div>
 </div>
 
+<!-- 저장 안 된 변경 알림 바 (조교 관리 모드) -->
+<div class="savebar hidden" id="savebar"><span id="savebarMsg">저장되지 않은 변경이 있습니다</span><button class="btn" onclick="saveToCloud()">☁ 지금 저장</button></div>
+
 <!-- 로그인 모달 -->
 <div class="modal-bg hidden" id="loginModal">
   <div class="modal">
@@ -340,6 +353,24 @@ const esc = v => String(v==null?'':v).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&
 
 /* ===================== 유틸 ===================== */
 const appByNo = no => STATE.applications.find(a=>a.no===no);
+// assignments[slot][server] = [no, ...] (구버전 문자열/null도 허용)
+function cellList(slotId, svId){
+  const v = (STATE.assignments[slotId]||{})[svId];
+  if(!v) return [];
+  return Array.isArray(v) ? v.filter(Boolean) : [v];
+}
+function cellListOf(v){ if(!v) return []; return Array.isArray(v) ? v.filter(Boolean) : [v]; }
+function cellApps(slotId, svId){ return cellList(slotId, svId).map(appByNo).filter(Boolean); }
+function cellGPU(slotId, svId){ return cellApps(slotId, svId).reduce((s,a)=>s+(parseInt(a.gpu,10)||0),0); }
+let DIRTY = false;
+function markDirty(){ DIRTY = true; updateSavebar(); }
+function updateSavebar(){
+  const el = document.getElementById('savebar'); if(!el) return;
+  el.classList.toggle('hidden', !(adminMode && DIRTY));
+  el.classList.remove('ok');
+  document.getElementById('savebarMsg').textContent = '저장되지 않은 변경이 있습니다 — 다른 사람에게는 아직 보이지 않습니다';
+}
+window.addEventListener('beforeunload', e=>{ if(adminMode && DIRTY){ e.preventDefault(); e.returnValue=''; } });
 function periodText(a){
   if(!a) return "";
   if(a.start && a.end) return a.start + " ~ " + a.end;
@@ -391,11 +422,11 @@ function render2Week(){
     const dayType = we?'we':'wd';
     const cells = bands.map(([b])=>{
       const slotId=dayType+'_'+b;
-      const no=(STATE.assignments[slotId]||{})[CUR_TAB]||null;
-      const a=no?appByNo(no):null;
-      if(a && inPeriod(dt,a)){
-        const tag = isPending(a) ? '<small>신청중</small>' : (String(a.status).startsWith('배정')?'<small>배정</small>':'<small>'+a.status+'</small>');
-        return `<td class="band"><span class="cal-occ">${a.who}${tag}</span></td>`;
+      const list = cellApps(slotId, CUR_TAB).filter(a=>inPeriod(dt,a));
+      if(list.length){
+        return `<td class="band">${list.map(a=>{
+          const tag = isPending(a) ? '<small>신청중</small>' : (String(a.status).startsWith('배정')?'<small>배정 · GPU '+(a.gpu||'?')+'</small>':'<small>'+a.status+'</small>');
+          return `<span class="cal-occ">${a.who}${tag}</span>`; }).join('')}</td>`;
       }
       return `<td class="band"><span class="cal-free">□</span></td>`;
     }).join('');
@@ -425,6 +456,7 @@ function render(){
   document.getElementById('saveBtn').classList.toggle('hidden', !adminMode);
   document.getElementById('logoutBtn').classList.toggle('hidden', !adminMode);
   document.getElementById('loginBtn').classList.toggle('hidden', adminMode);
+  updateSavebar();
 }
 
 function renderCards(){
@@ -445,25 +477,23 @@ function renderCards(){
 function renderGrid(){
   const rows = SLOTS.map(slot=>{
     const tds = SERVERS.map(sv=>{
-      const no = (STATE.assignments[slot.id]||{})[sv.id] || null;
-      const a = no ? appByNo(no) : null;
+      const nos = cellList(slot.id, sv.id);
+      const list = cellApps(slot.id, sv.id);
+      const g = cellGPU(slot.id, sv.id), over = g > sv.total;
+      const gpuLine = list.length ? `<div class="cell-gpu ${over?'over':''}">GPU ${g}/${sv.total}${over?' ⚠ 초과':''}</div>` : '';
       if(adminMode){
-        // 해당 서버를 희망한 신청건만 후보로
+        // 해당 서버를 희망한 신청건(반려 제외)만 후보로, 체크 = 이 시간대에 배정
         const cands = STATE.applications.filter(x=>x.server===sv.id && x.status!=='반려');
-        const opts = ['<option value="">— 비움 —</option>']
-          .concat(cands.map(x=>`<option value="${x.no}" ${x.no===no?'selected':''}>${x.who} (${x.no})</option>`))
-          .join('');
-        return `<td class="cell ${a?'occ':''}">
-          <select class="cellsel" onchange="assign('${slot.id}','${sv.id}',this.value)">${opts}</select>
-          ${a?`<div class="occ-period">${periodText(a)}</div>`:''}
-        </td>`;
+        const boxes = cands.map(x=>`<label class="cand"><input type="checkbox" ${nos.includes(x.no)?'checked':''} onchange="toggleAssign('${slot.id}','${sv.id}','${x.no}',this.checked)">${esc(x.who)} <span class="g">GPU ${esc(x.gpu)||'?'} · ${esc(x.status)}</span></label>`).join('')
+          || '<span class="occ-free">후보 없음</span>';
+        return `<td class="cell ${list.length?'occ':''}">${boxes}${gpuLine}</td>`;
       }
-      if(!a) return `<td class="cell"><span class="occ-free">□</span></td>`;
-      return `<td class="cell occ">
-        <div class="occ-name">${a.who}</div>
-        <div class="occ-period">${periodText(a)}</div>
+      if(!list.length) return `<td class="cell"><span class="occ-free">□</span></td>`;
+      return `<td class="cell occ">${list.map(a=>`<div class="occ-item">
+        <div class="occ-name">${esc(a.who)}</div>
+        <div class="occ-period">${periodText(a)} · GPU ${esc(a.gpu)||'?'}</div>
         ${statusPill(a)}
-      </td>`;
+      </div>`).join('')}${gpuLine}</td>`;
     }).join('');
     return `<tr><td class="slot">${slot.label}</td>${tds}</tr>`;
   }).join('');
@@ -486,7 +516,7 @@ function renderApps(){
         <td class="c"><select class="inp" onchange="editApp(${i},'status',this.value)">
           ${['접수','승인','반려','배정','배정(기존)','연장','종료','검토중'].map(s=>`<option ${s===a.status?'selected':''}>${s}</option>`).join('')}
         </select></td>
-        <td class="c"><button class="linkbtn" onclick="openDetail(${i})">📄 보기</button></td>
+        <td class="c nowrap"><button class="linkbtn" onclick="openDetail(${i})">📄 보기</button></td>
         <td class="c rowtools"><button class="linkbtn" onclick="delApp(${i})">삭제</button></td>
       </tr>`;
     }
@@ -494,7 +524,7 @@ function renderApps(){
       <td>${a.no}</td><td><b>${a.who}</b></td><td>${a.kind}</td><td>${svById(a.server)?svById(a.server).name:a.server}</td>
       <td class="c">${a.gpu||'—'}</td><td>${a.start||'—'}</td><td>${a.end||'—'}</td>
       <td class="c"><span class="st ${st}">${a.status}</span></td>
-      <td class="c">${chairAuthed?`<button class="linkbtn" onclick="openDetail(${i})">📄 보기</button>`:'<span style="color:#aab2bd">—</span>'}</td>
+      <td class="c nowrap">${chairAuthed?`<button class="linkbtn" onclick="openDetail(${i})">📄 보기</button>`:'<span style="color:#aab2bd">—</span>'}</td>
       <td class="c admincol hidden"></td>
     </tr>`;
   }).join('');
@@ -503,7 +533,7 @@ function renderApps(){
 function renderPendNote(){
   // 시간대 미배정 배정건(기존 등) 안내
   const placed = new Set();
-  Object.values(STATE.assignments).forEach(row=>Object.values(row).forEach(v=>{ if(v) placed.add(v); }));
+  Object.values(STATE.assignments).forEach(row=>Object.values(row).forEach(v=>{ (Array.isArray(v)?v:[v]).forEach(x=>{ if(x) placed.add(x); }); }));
   const pend = STATE.applications.filter(a=>String(a.status).startsWith("배정") && !placed.has(a.no));
   const el = document.getElementById('pendNote');
   if(pend.length){
@@ -515,27 +545,33 @@ function renderPendNote(){
 }
 
 /* ===================== 편집 액션 ===================== */
-function assign(slotId, svId, no){
+function toggleAssign(slotId, svId, no, on){
   if(!STATE.assignments[slotId]) STATE.assignments[slotId]={};
-  STATE.assignments[slotId][svId] = no || null;
-  renderGrid(); renderCards(); renderPendNote();
+  let list = cellList(slotId, svId);
+  if(on){ if(!list.includes(no)) list.push(no); } else { list = list.filter(x=>x!==no); }
+  STATE.assignments[slotId][svId] = list;
+  // 한 칸이라도 배정되면 상태를 '배정'으로 올림 (접수/검토중/승인 → 배정)
+  const a = appByNo(no);
+  if(on && a && !String(a.status).startsWith('배정')) a.status = '배정';
+  markDirty(); renderGrid(); renderCards(); render2Week(); renderApps(); renderPendNote();
 }
 function editApp(i, field, val){
   STATE.applications[i][field] = val;
+  markDirty();
   // 서버를 바꾸면 기존 시간표 배정에서 해당 no 제거(불일치 방지)
   if(field==='server' || field==='no'){ renderGrid(); }
   renderCards(); renderApps(); renderPendNote();
 }
 function addApp(){
   STATE.applications.push({no:"신규", who:"", kind:"", server:"h200", gpu:"", start:"", end:"", status:"접수", note:""});
-  renderApps();
+  markDirty(); renderApps();
 }
 function delApp(i){
   const no = STATE.applications[i].no;
   STATE.applications.splice(i,1);
   // 시간표에서도 제거
-  Object.values(STATE.assignments).forEach(row=>{ for(const k in row){ if(row[k]===no) row[k]=null; } });
-  render();
+  Object.values(STATE.assignments).forEach(row=>{ for(const k in row){ row[k] = cellListOf(row[k]).filter(x=>x!==no); } });
+  markDirty(); render();
 }
 
 /* ===================== 관리자 로그인 ===================== */
@@ -545,7 +581,16 @@ function doLogin(){
   if(document.getElementById('pinInput').value === ADMIN_PIN){ adminMode=true; closeLogin(); render(); }
   else { alert('PIN이 올바르지 않습니다.'); }
 }
-function exitAdmin(){ adminMode=false; render(); }
+function exitAdmin(){
+  if(DIRTY){
+    if(confirm('저장되지 않은 변경이 있습니다. 저장하고 나갈까요?\n(취소를 누르면 변경을 버리고 나갑니다)')){
+      saveToCloud(ok=>{ if(ok){ adminMode=false; render(); updateSavebar(); } else alert('저장에 실패했습니다. 네트워크를 확인하고 ☁ 저장을 다시 눌러주세요.'); });
+      return;
+    }
+    DIRTY=false; loadFromCloud();
+  }
+  adminMode=false; render(); updateSavebar();
+}
 
 /* ===================== 클라우드 ===================== */
 function setCloud(msg, cls){ const el=document.getElementById('cloudStatus'); el.textContent=msg; el.className='cloud-status '+(cls||''); }
@@ -643,7 +688,7 @@ function doSave(cb){
   jsonp({action:'save', pin:ADMIN_PIN, payload:JSON.stringify(STATE)}, (j)=>{
     let ok = false;
     if(j && j.status==='ok'){
-      ok = true; LOADED_AT = new Date().toISOString(); DECIDED.clear();
+      ok = true; LOADED_AT = new Date().toISOString(); DECIDED.clear(); DIRTY=false; updateSavebar();
       setCloud('☁ 저장됨 · ' + (j.synced?new Date(j.synced).toLocaleString('ko-KR'):''), 'ok');
     } else if(j && j.message==='unauthorized'){
       setCloud('☁ 저장 실패(PIN 불일치)', 'err');
