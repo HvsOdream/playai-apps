@@ -55,7 +55,7 @@
   button.btn.warn:hover{background:#fdece8}
   .hidden{display:none !important}
 
-  /* 학과장 승인 */
+  /* 담당자 승인 */
   .step.chair{border-color:var(--navy);box-shadow:0 1px 5px rgba(46,90,172,.15);cursor:pointer}
   .step.chair .n{background:var(--navy)}
   .step.chair .t em{color:var(--navy);font-weight:700}
@@ -179,7 +179,7 @@
     <ol class="steps">
       <li class="step link"><a href="./apply/"><span class="n">1</span><span class="t">사용 계획서 제출<em>신청기관 · 양식 열기 →</em></span></a></li>
       <li class="arr">›</li>
-      <li class="step chair" id="chairStep" onclick="openChair()"><span class="n">2</span><span class="t">학과장 승인<em>학과장 · 승인/반려 처리 →</em></span><span class="cnt hidden" id="chairCnt">0</span></li>
+      <li class="step chair" id="chairStep" onclick="openChair()"><span class="n">2</span><span class="t">담당자 승인<em>담당자 · 승인/반려 처리 →</em></span><span class="cnt hidden" id="chairCnt">0</span></li>
       <li class="arr">›</li>
       <li class="step"><span class="n">3</span><span class="t">사용시간 입력<em>조교 · 조교 관리 모드</em></span></li>
       <li class="arr">›</li>
@@ -218,7 +218,7 @@
   </table>
   <div class="foot">
     <span class="k">■ 범례</span> &nbsp; <span class="pill rev">신청중</span> 검토 중 &nbsp;
-    <span class="pill apv">승인</span> 학과장 승인 &nbsp; <span class="pill asn">배정</span> 배정 완료 &nbsp; <span class="pill chk">확인필요</span> 기존 이용·시간대 미확인 &nbsp;
+    <span class="pill apv">승인</span> 담당자 승인 &nbsp; <span class="pill asn">배정</span> 배정 완료 &nbsp; <span class="pill chk">확인필요</span> 기존 이용·시간대 미확인 &nbsp;
     <span style="color:#aab2bd">□</span> 여유
   </div>
 
@@ -235,7 +235,7 @@
   <div class="foot">
     ※ 이용시간대는 <b>평일·주말 각각 오전(09~13)·오후(13~18)·야간(18~24)</b>으로 구분해 배정합니다.<br>
     ※ 1회 배정 이용기간은 <b>6개월 이내</b>이며, 종료일 미기재 신청은 접수되지 않습니다. (운영규정 제7조)<br>
-    ※ 신청 흐름: <b>접수</b>(신청서 제출) → <b>승인/반려</b>(학과장, 상단 2단계 버튼) → <b>배정</b>(조교, 조교 관리 모드에서 시간표 배정). 시간표 각 칸에는 <b>이용자 · 이용기간(시작~종료)</b>이 함께 표시됩니다.
+    ※ 신청 흐름: <b>접수</b>(신청서 제출) → <b>승인/반려</b>(담당자, 상단 2단계 버튼) → <b>배정</b>(조교, 조교 관리 모드에서 시간표 배정). 시간표 각 칸에는 <b>이용자 · 이용기간(시작~종료)</b>이 함께 표시됩니다.
   </div>
 </div>
 
@@ -251,11 +251,11 @@
   </div>
 </div>
 
-<!-- 학과장 로그인 모달 -->
+<!-- 담당자 로그인 모달 -->
 <div class="modal-bg hidden" id="chairLoginModal">
   <div class="modal">
-    <h4>🪪 학과장 로그인</h4>
-    <input type="password" id="chairPin" placeholder="학과장 PIN" onkeydown="if(event.key==='Enter')doChairLogin()">
+    <h4>🪪 담당자 로그인</h4>
+    <input type="password" id="chairPin" placeholder="담당자 PIN" onkeydown="if(event.key==='Enter')doChairLogin()">
     <div class="row">
       <button class="btn" onclick="closeChairLogin()">취소</button>
       <button class="btn solid" onclick="doChairLogin()">로그인</button>
@@ -263,10 +263,10 @@
   </div>
 </div>
 
-<!-- 학과장 승인 모달 -->
+<!-- 담당자 승인 모달 -->
 <div class="modal-bg hidden" id="chairModal">
   <div class="modal wide">
-    <h4>🪪 학과장 승인 <span class="proc-sub" id="chairSub"></span></h4>
+    <h4>🪪 담당자 승인 <span class="proc-sub" id="chairSub"></span></h4>
     <div id="chairList"></div>
     <div class="row">
       <button class="btn" onclick="closeChair()">닫기</button>
@@ -281,7 +281,7 @@ const CLOUD_URL = "https://script.google.com/macros/s/AKfycbxkobPk9_Cg5589mlR5f6
 const PROXY = "https://playai-api.withsky0.workers.dev/gpu"; /* 중계 서버(Cloudflare) — script.google.com 차단/로그인 요구 우회 */
 // 관리자 PIN — Apps Script의 WRITE_PIN 과 반드시 동일하게.
 const ADMIN_PIN = "7399";
-// 학과장 PIN — 조교 PIN과 별도. 승인/반려 패널 전용(저장은 ADMIN_PIN으로 백엔드에 전달).
+// 담당자 PIN — 조교 PIN과 별도. 승인/반려 패널 전용(저장은 ADMIN_PIN으로 백엔드에 전달).
 const CHAIR_PIN = "7570";
 
 /* ===================== 고정 정의 ===================== */
@@ -602,7 +602,7 @@ function saveToCloud(cb){
   });
 }
 
-/* ===================== 학과장 승인 ===================== */
+/* ===================== 담당자 승인 ===================== */
 function pendingApps(){ return STATE.applications.filter(isPending); }
 function renderChairBadge(){
   const n = pendingApps().length;
@@ -617,7 +617,7 @@ function openChair(){
 function closeChairLogin(){ document.getElementById('chairLoginModal').classList.add('hidden'); document.getElementById('chairPin').value=''; }
 function doChairLogin(){
   if(document.getElementById('chairPin').value === CHAIR_PIN){ chairAuthed=true; closeChairLogin(); showChair(); }
-  else { alert('학과장 PIN이 올바르지 않습니다.'); }
+  else { alert('담당자 PIN이 올바르지 않습니다.'); }
 }
 function showChair(){ renderChair(); document.getElementById('chairModal').classList.remove('hidden'); }
 function closeChair(){ document.getElementById('chairModal').classList.add('hidden'); }
@@ -650,7 +650,7 @@ function chairDecide(i, decision){
   if(decision==='반려' && !reason){ alert('반려 사유를 입력해 주세요.'); if(inp) inp.focus(); return; }
   const stamp = new Date().toISOString().slice(0,10);
   a.status = decision;
-  a.note = (a.note ? a.note + '\n' : '') + '[학과장 ' + decision + ' ' + stamp + ']' + (reason ? ' ' + reason : '');
+  a.note = (a.note ? a.note + '\n' : '') + '[담당자 ' + decision + ' ' + stamp + ']' + (reason ? ' ' + reason : '');
   render(); renderChair('— ☁ 저장 중…');
   saveToCloud(ok=>{ renderChair(ok ? '— ☁ 저장됨 · 승인 대기 ' + pendingApps().length + '건' : '— ⚠ 저장 실패: 네트워크 확인 후 다시 시도'); });
 }
