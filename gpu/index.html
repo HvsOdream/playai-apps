@@ -51,6 +51,10 @@
   button.btn:hover{background:#eef2fb}
   button.btn.solid{background:var(--navy);color:#fff}
   button.btn.solid:hover{background:var(--navy-d)}
+  button.btn.big{font-size:15px;padding:10px 22px;border-radius:10px;box-shadow:0 3px 10px rgba(46,90,172,.3)}
+  button.btn.big.dirty{background:#c9553d;border-color:#c9553d;animation:pulse 1.6s infinite}
+  button.btn.big.dirty:hover{background:#a8432f}
+  @keyframes pulse{0%,100%{box-shadow:0 3px 10px rgba(201,85,61,.35)}50%{box-shadow:0 3px 18px rgba(201,85,61,.7)}}
   button.btn.warn{border-color:#c9553d;color:#c9553d}
   button.btn.warn:hover{background:#fdece8}
   .hidden{display:none !important}
@@ -120,7 +124,10 @@
   .cal-occ{display:block}
   .savebar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#1f2a3a;color:#fff;border-radius:999px;padding:9px 10px 9px 16px;display:flex;gap:10px;align-items:center;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:50}
   .savebar .btn{background:#fff;color:#1f2a3a;border:0;font-weight:800}
-  .savebar.ok{background:#2f6b3a}
+  .savebar .btn.bigsave{font-size:15px;padding:9px 20px;border-radius:999px}
+  .savebar.dirty{background:#c9553d}
+  .savebar.dirty .btn.bigsave{color:#c9553d}
+  .savebar.clean{background:#2f6b3a} .savebar.clean .btn.bigsave{opacity:.6;cursor:default}
   td.c.nowrap{white-space:nowrap}
   .occ-period{font-size:10.5px;color:#7a5a2e;margin-top:1px}
   .occ-free{color:#aab2bd;font-size:16px}
@@ -190,7 +197,7 @@
     </div>
     <div class="adminbar">
       <button class="btn" id="loginBtn" onclick="openLogin()">🔒 조교 관리</button>
-      <button class="btn solid hidden" id="saveBtn" onclick="saveToCloud()">☁ 저장</button>
+      <button class="btn solid big hidden" id="saveBtn" onclick="saveToCloud()">💾 저장하기</button>
       <button class="btn hidden" id="logoutBtn" onclick="exitAdmin()">완료</button>
     </div>
   </header>
@@ -261,7 +268,7 @@
 </div>
 
 <!-- 저장 안 된 변경 알림 바 (조교 관리 모드) -->
-<div class="savebar hidden" id="savebar"><span id="savebarMsg">저장되지 않은 변경이 있습니다</span><button class="btn" onclick="saveToCloud()">☁ 지금 저장</button></div>
+<div class="savebar hidden" id="savebar"><span id="savebarMsg">변경 없음</span><button class="btn bigsave" id="savebarBtn" onclick="saveToCloud()">💾 저장하기</button></div>
 
 <!-- 로그인 모달 -->
 <div class="modal-bg hidden" id="loginModal">
@@ -382,9 +389,13 @@ let DIRTY = false;
 function markDirty(){ DIRTY = true; updateSavebar(); }
 function updateSavebar(){
   const el = document.getElementById('savebar'); if(!el) return;
-  el.classList.toggle('hidden', !(adminMode && DIRTY));
-  el.classList.remove('ok');
-  document.getElementById('savebarMsg').textContent = '저장되지 않은 변경이 있습니다 — 다른 사람에게는 아직 보이지 않습니다';
+  el.classList.toggle('hidden', !adminMode);
+  el.classList.toggle('dirty', DIRTY); el.classList.toggle('clean', !DIRTY);
+  document.getElementById('savebarMsg').textContent = DIRTY
+    ? '⚠ 저장되지 않은 변경이 있습니다 — 저장 전까지 다른 사람에게 보이지 않습니다'
+    : '✓ 모두 저장됨';
+  const top = document.getElementById('saveBtn');
+  if(top){ top.classList.toggle('dirty', DIRTY); top.textContent = DIRTY ? '💾 저장하기 (변경 있음)' : '💾 저장하기'; }
 }
 window.addEventListener('beforeunload', e=>{ if(adminMode && DIRTY){ e.preventDefault(); e.returnValue=''; } });
 function periodText(a){
