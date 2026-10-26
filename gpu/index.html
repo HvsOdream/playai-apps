@@ -333,6 +333,8 @@ const SEED = {
 let STATE = JSON.parse(JSON.stringify(SEED));
 let adminMode = false;
 let chairAuthed = false;
+let LOADED_AT = new Date().toISOString();   // 마지막으로 서버 데이터를 받은 시각 (병합 기준)
+let DECIDED = new Set();                    // 이 화면에서 담당자가 승인/반려한 신청번호
 const isPending = a => a.status==='접수' || a.status==='검토중';
 const esc = v => String(v==null?'':v).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -578,7 +580,7 @@ function loadFromCloud(attempt){
   setCloud(attempt>1 ? ('☁ 다시 연결 중… ('+attempt+'/3)') : '☁ 불러오는 중…', '');
   jsonp({action:'read'}, (j, why)=>{
     if(j && j.status==='ok' && j.data && j.data.applications){
-      STATE = j.data; render();
+      STATE = j.data; LOADED_AT = new Date().toISOString(); render();
       setCloud('☁ 불러옴 · ' + (j.data._synced ? new Date(j.data._synced).toLocaleString('ko-KR'):'—'), 'ok');
     } else if(j && j.status==='empty'){
       setCloud('☁ 서버 비어있음 — 첫 저장 시 생성', '');
@@ -598,13 +600,50 @@ function loadFromCloud(attempt){
   });
 }
 
+/* 다른 기기(조교↔담당자)에서 먼저 저장한 내용을 덮어쓰지 않도록, 저장 직전에 최신본을 받아 병합한다.
+   - 배정표(assignments): 조교 관리 모드면 이 화면 것, 아니면 서버 것
+   - 신청 목록: 서버 목록을 기준으로, 조교가 편집한 행은 덮어쓰되 서버에서 이미 승인/반려된 상태는 유지
+   - 내가 로드한 뒤 새로 접수된 건은 그대로 살림 / 조교가 지운 행(로드 전 접수분)은 삭제 반영 */
+const FINAL = s => s==='승인' || s==='반려';
+function mergeState(local, remote){
+  if(!remote || !Array.isArray(remote.applications)) return local;
+  const out = { assignments: adminMode ? local.assignments : remote.assignments, applications: [] };
+  const lmap = new Map(local.applications.map(a=>[a.no,a]));
+  remote.applications.forEach(r=>{
+    const l = lmap.get(r.no);
+    if(!l){
+      const isNew = r._submittedAt && r._submittedAt > LOADED_AT;
+      if(!adminMode || isNew) out.applications.push(r);     // 조교가 지운 행만 제외
+      return;
+    }
+    let m;
+    if(adminMode){
+      m = Object.assign({}, r, l);
+      if(FINAL(r.status) && isPending(l) && !DECIDED.has(r.no)){ m.status=r.status; m.note=r.note; }
+      else if(r.note && String(r.note).length > String(l.note||'').length && String(r.note).startsWith(String(l.note||'').split('\n')[0]) && !DECIDED.has(r.no)){ m.note=r.note; }
+    } else {
+      m = DECIDED.has(r.no) ? Object.assign({}, r, {status:l.status, note:l.note}) : r;
+    }
+    out.applications.push(m);
+  });
+  // 로컬에만 있는 행(조교가 '신청 추가'로 만든 것)
+  local.applications.forEach(l=>{ if(!remote.applications.some(r=>r.no===l.no)) out.applications.push(l); });
+  return out;
+}
 function saveToCloud(cb){
   if(!CLOUD_URL){ alert('CLOUD_URL이 설정되지 않아 로컬에서만 편집됩니다.\nApps Script 배포 후 URL을 넣어주세요.'); if(cb) cb(false); return; }
+  setCloud('☁ 최신본 확인 중…', '');
+  jsonp({action:'read'}, (r)=>{
+    if(r && r.status==='ok' && r.data){ STATE = mergeState(STATE, r.data); render(); }
+    doSave(cb);
+  });
+}
+function doSave(cb){
   setCloud('☁ 저장 중…', '');
   jsonp({action:'save', pin:ADMIN_PIN, payload:JSON.stringify(STATE)}, (j)=>{
     let ok = false;
     if(j && j.status==='ok'){
-      ok = true;
+      ok = true; LOADED_AT = new Date().toISOString(); DECIDED.clear();
       setCloud('☁ 저장됨 · ' + (j.synced?new Date(j.synced).toLocaleString('ko-KR'):''), 'ok');
     } else if(j && j.message==='unauthorized'){
       setCloud('☁ 저장 실패(PIN 불일치)', 'err');
@@ -695,7 +734,7 @@ function chairDecide(i, decision){
   const reason = inp ? inp.value.trim() : '';
   if(decision==='반려' && !reason){ alert('반려 사유를 입력해 주세요.'); if(inp) inp.focus(); return; }
   const stamp = new Date().toISOString().slice(0,10);
-  a.status = decision;
+  a.status = decision; DECIDED.add(a.no);
   a.note = (a.note ? a.note + '\n' : '') + '[담당자 ' + decision + ' ' + stamp + ']' + (reason ? ' ' + reason : '');
   render(); renderChair('— ☁ 저장 중…');
   saveToCloud(ok=>{ renderChair(ok ? '— ☁ 저장됨 · 승인 대기 ' + pendingApps().length + '건' : '— ⚠ 저장 실패: 네트워크 확인 후 다시 시도'); });
